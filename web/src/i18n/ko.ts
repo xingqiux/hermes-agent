@@ -122,6 +122,16 @@ export const ko: Translations = {
     stopped: "중지됨",
     updateHermes: "Hermes 업데이트",
     updatingHermes: "Hermes 업데이트 중…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "출력 대기 중…",
   },
 
@@ -390,6 +400,8 @@ export const ko: Translations = {
     noProviders: "OAuth를 지원하는 제공자가 감지되지 않았습니다.",
     login: "로그인",
     disconnect: "연결 해제",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "외부에서 관리됨",
     copied: "복사됨 ✓",
     cli: "CLI",

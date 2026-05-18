@@ -270,6 +270,10 @@ export const api = {
     fetchJSON<ActionResponse>("/api/gateway/restart", { method: "POST" }),
   updateHermes: () =>
     fetchJSON<ActionResponse>("/api/hermes/update", { method: "POST" }),
+  updateHermesLocalized: () =>
+    fetchJSON<ActionResponse>("/api/hermes/update/localized", { method: "POST" }),
+  checkHermesUpdate: () =>
+    fetchJSON<UpdateCheckResponse>("/api/hermes/update/check"),
   getActionStatus: (name: string, lines = 200) =>
     fetchJSON<ActionStatusResponse>(
       `/api/actions/${encodeURIComponent(name)}/status?lines=${lines}`,
@@ -354,6 +358,19 @@ export interface ActionStatusResponse {
   name: string;
   pid: number | null;
   running: boolean;
+}
+
+export interface UpdateCheckResponse {
+  ahead_upstream: number;
+  behind_upstream: number;
+  can_update: boolean;
+  current_branch: string;
+  dirty: boolean;
+  last_checked_at: string;
+  local_commit: string | null;
+  origin_commit: string | null;
+  reason: string;
+  upstream_commit: string | null;
 }
 
 export interface PlatformStatus {

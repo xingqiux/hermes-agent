@@ -16,14 +16,14 @@ const age = (ts: number) => {
   const d = (Date.now() / 1000 - ts) / 86400
 
   if (d < 1) {
-    return 'today'
+    return '今天'
   }
 
   if (d < 2) {
-    return 'yesterday'
+    return '昨天'
   }
 
-  return `${Math.floor(d)}d ago`
+  return `${Math.floor(d)} 天前`
 }
 
 export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps) {
@@ -47,7 +47,7 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
         const r = asRpcResult<SessionListResponse>(raw)
 
         if (!r) {
-          setErr('invalid response: session.list')
+          setErr('无效响应：session.list')
           setLoading(false)
 
           return
@@ -76,7 +76,7 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
         const r = asRpcResult<SessionDeleteResponse>(raw)
 
         if (!r || r.deleted !== target.id) {
-          setErr('invalid response: session.delete')
+          setErr('无效响应：session.delete')
           setDeleting(false)
 
           return
@@ -142,14 +142,14 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
   })
 
   if (loading) {
-    return <Text color={t.color.muted}>loading sessions…</Text>
+    return <Text color={t.color.muted}>正在加载会话…</Text>
   }
 
   if (err && !items.length) {
     return (
       <Box flexDirection="column">
-        <Text color={t.color.label}>error: {err}</Text>
-        <OverlayHint t={t}>Esc/q cancel</OverlayHint>
+        <Text color={t.color.label}>错误：{err}</Text>
+        <OverlayHint t={t}>Esc/q 取消</OverlayHint>
       </Box>
     )
   }
@@ -157,8 +157,8 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
   if (!items.length) {
     return (
       <Box flexDirection="column">
-        <Text color={t.color.muted}>no previous sessions</Text>
-        <OverlayHint t={t}>Esc/q cancel</OverlayHint>
+        <Text color={t.color.muted}>没有历史会话</Text>
+        <OverlayHint t={t}>Esc/q 取消</OverlayHint>
       </Box>
     )
   }
@@ -168,10 +168,10 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
   return (
     <Box flexDirection="column" width={width}>
       <Text bold color={t.color.accent}>
-        Resume Session
+        继续会话
       </Text>
 
-      {offset > 0 && <Text color={t.color.muted}>  ↑ {offset} more</Text>}
+      {offset > 0 && <Text color={t.color.muted}>  ↑ 还有 {offset} 个</Text>}
 
       {items.slice(offset, offset + VISIBLE).map((s, vi) => {
         const i = offset + vi
@@ -192,7 +192,7 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
 
             <Box width={30}>
               <Text bold={selected} color={selected ? t.color.accent : t.color.muted} inverse={selected}>
-                ({s.message_count} msgs, {age(s.started_at)}, {s.source || 'tui'})
+                ({s.message_count} 条消息, {age(s.started_at)}, {s.source || 'tui'})
               </Text>
             </Box>
 
@@ -202,18 +202,18 @@ export function SessionPicker({ gw, onCancel, onSelect, t }: SessionPickerProps)
               inverse={selected}
               wrap="truncate-end"
             >
-              {pendingDelete ? 'press d again to delete' : s.title || s.preview || '(untitled)'}
+              {pendingDelete ? '再次按 d 删除' : s.title || s.preview || '(无标题)'}
             </Text>
           </Box>
         )
       })}
 
-      {offset + VISIBLE < items.length && <Text color={t.color.muted}>  ↓ {items.length - offset - VISIBLE} more</Text>}
-      {err && <Text color={t.color.label}>error: {err}</Text>}
+      {offset + VISIBLE < items.length && <Text color={t.color.muted}>  ↓ 还有 {items.length - offset - VISIBLE} 个</Text>}
+      {err && <Text color={t.color.label}>错误：{err}</Text>}
       {deleting ? (
-        <OverlayHint t={t}>deleting…</OverlayHint>
+        <OverlayHint t={t}>正在删除…</OverlayHint>
       ) : (
-        <OverlayHint t={t}>↑/↓ select · Enter resume · 1-9 quick · d delete · Esc/q cancel</OverlayHint>
+        <OverlayHint t={t}>↑/↓ 选择 · Enter 继续 · 1-9 快速选择 · d 删除 · Esc/q 取消</OverlayHint>
       )}
     </Box>
   )

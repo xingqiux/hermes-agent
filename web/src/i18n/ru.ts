@@ -122,6 +122,16 @@ export const ru: Translations = {
     stopped: "Остановлено",
     updateHermes: "Обновить Hermes",
     updatingHermes: "Обновление Hermes…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "Ожидание вывода…",
   },
 
@@ -390,6 +400,8 @@ export const ru: Translations = {
     noProviders: "OAuth-совместимые провайдеры не обнаружены.",
     login: "Войти",
     disconnect: "Отключить",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "Управляется извне",
     copied: "Скопировано ✓",
     cli: "CLI",

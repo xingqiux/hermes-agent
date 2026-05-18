@@ -63,6 +63,17 @@ hermes update       # 更新到最新版本
 hermes doctor       # 诊断问题
 ```
 
+### 汉化版 fork 更新策略
+
+如果你使用 `xingqiux/hermes-agent` 作为长期汉化版，建议保留：
+
+- `origin/main`：你的汉化版主分支
+- `upstream/main`：官方 `NousResearch/hermes-agent` 更新来源
+
+Dashboard 侧栏提供“检查更新”和“更新汉化版”。检查更新会比较官方 `upstream/main`；点击更新时会先确认当前在 `main` 分支且工作区干净，然后合并官方更新、保留本地汉化提交，构建成功后推送到 `origin/main`。
+
+为避免覆盖你的本地工作，工作区只要有未提交改动（包括 `uv.lock` 或未跟踪文件），更新会拒绝执行并显示 `git status` 结果。请先提交、还原或清理这些改动，再重新点击更新。
+
 📖 **[完整文档 →](https://hermes-agent.nousresearch.com/docs/)**
 
 ## CLI 与消息平台 快速对照

@@ -301,6 +301,53 @@ class TestWebServerEndpoints:
 
         assert resp.status_code == 200
 
+    def test_localized_update_check_endpoint(self, monkeypatch):
+        """Dashboard can fetch localized fork update status with auth."""
+        from hermes_cli.localized_update import UpdateCheck
+
+        expected = UpdateCheck(
+            current_branch="main",
+            local_commit="local123",
+            origin_commit="origin123",
+            upstream_commit="upstream123",
+            behind_upstream=3,
+            ahead_upstream=1,
+            dirty=False,
+            can_update=True,
+            reason="Ready to update",
+            last_checked_at="2026-05-18T08:00:00+00:00",
+        )
+        monkeypatch.setattr(
+            "hermes_cli.localized_update.check_update_status",
+            lambda fetch=True: expected,
+        )
+
+        resp = self.client.get("/api/hermes/update/check")
+
+        assert resp.status_code == 200
+        assert resp.json()["behind_upstream"] == 3
+        assert resp.json()["upstream_commit"] == "upstream123"
+
+    def test_localized_update_starts_dedicated_action(self, monkeypatch):
+        """Dashboard update button uses localized update instead of stock reset path."""
+        captured = {}
+
+        def fake_spawn(module, args, name):
+            captured.update({"module": module, "args": args, "name": name})
+            return MagicMock(pid=4321)
+
+        monkeypatch.setattr("hermes_cli.web_server._spawn_python_module_action", fake_spawn)
+
+        resp = self.client.post("/api/hermes/update/localized")
+
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "hermes-localized-update"
+        assert captured == {
+            "module": "hermes_cli.localized_update",
+            "args": ["apply"],
+            "name": "hermes-localized-update",
+        }
+
     def test_session_token_endpoint_removed(self):
         """GET /api/auth/session-token should no longer exist (token injected via HTML)."""
         resp = self.client.get("/api/auth/session-token")

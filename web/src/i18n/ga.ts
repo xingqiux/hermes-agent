@@ -122,6 +122,16 @@ export const ga: Translations = {
     stopped: "Stoptha",
     updateHermes: "Nuashonraigh Hermes",
     updatingHermes: "Ag nuashonrú Hermes…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "Ag fanacht le haschur…",
   },
 
@@ -390,6 +400,8 @@ export const ga: Translations = {
     noProviders: "Níor aimsíodh soláthraithe a thacaíonn le OAuth.",
     login: "Logáil isteach",
     disconnect: "Dícheangail",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "Bainistithe go seachtrach",
     copied: "Cóipeáilte ✓",
     cli: "CLI",

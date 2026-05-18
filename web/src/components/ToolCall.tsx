@@ -111,7 +111,7 @@ export function ToolCall({ tool }: { tool: ToolEntry }) {
         {tool.status === "running" && (
           <span
             className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse shrink-0"
-            title="running"
+            title="运行中"
           />
         )}
         {tool.status === "error" && (

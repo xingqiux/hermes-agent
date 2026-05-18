@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { ActionStatusResponse } from "@/lib/api";
+import type { ActionStatusResponse, UpdateCheckResponse } from "@/lib/api";
 import { Toast } from "@/components/Toast";
 import { useI18n } from "@/i18n";
 import {
@@ -10,7 +10,7 @@ import {
 
 const ACTION_NAMES: Record<SystemAction, string> = {
   restart: "gateway-restart",
-  update: "hermes-update",
+  update: "hermes-localized-update",
 };
 
 export function SystemActionsProvider({
@@ -23,6 +23,10 @@ export function SystemActionsProvider({
   const [actionStatus, setActionStatus] = useState<ActionStatusResponse | null>(
     null,
   );
+  const [updateCheck, setUpdateCheck] = useState<UpdateCheckResponse | null>(
+    null,
+  );
+  const [updateCheckLoading, setUpdateCheckLoading] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { t } = useI18n();
 
@@ -72,7 +76,7 @@ export function SystemActionsProvider({
         if (action === "restart") {
           await api.restartGateway();
         } else {
-          await api.updateHermes();
+          await api.updateHermesLocalized();
         }
         setActiveAction(action);
       } catch (err) {
@@ -88,6 +92,48 @@ export function SystemActionsProvider({
     [t.status.actionFailed],
   );
 
+  const checkUpdate = useCallback(async () => {
+    setUpdateCheckLoading(true);
+    try {
+      const resp = await api.checkHermesUpdate();
+      setUpdateCheck(resp);
+      const message = resp.dirty
+        ? resp.behind_upstream > 0
+          ? t.status.updateBlockedDirtyWithCount.replace(
+              "{count}",
+              String(resp.behind_upstream),
+            )
+          : t.status.updateBlockedDirty
+        : !resp.can_update
+          ? t.status.updateBlocked.replace("{reason}", resp.reason)
+          : resp.behind_upstream > 0
+            ? t.status.updateAvailable.replace(
+                "{count}",
+                String(resp.behind_upstream),
+              )
+            : t.status.noUpdateAvailable;
+      setToast({
+        type: resp.can_update ? "success" : "error",
+        message,
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setToast({
+        type: "error",
+        message: `${t.status.updateCheckFailed}: ${detail}`,
+      });
+    } finally {
+      setUpdateCheckLoading(false);
+    }
+  }, [
+    t.status.noUpdateAvailable,
+    t.status.updateBlocked,
+    t.status.updateBlockedDirty,
+    t.status.updateBlockedDirtyWithCount,
+    t.status.updateAvailable,
+    t.status.updateCheckFailed,
+  ]);
+
   const dismissLog = useCallback(() => {
     setActiveAction(null);
     setActionStatus(null);
@@ -101,11 +147,14 @@ export function SystemActionsProvider({
       value={{
         actionStatus,
         activeAction,
+        checkUpdate,
         dismissLog,
         isBusy,
         isRunning,
         pendingAction,
         runAction,
+        updateCheck,
+        updateCheckLoading,
       }}
     >
       {children}

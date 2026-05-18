@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Package,
   Puzzle,
+  RefreshCw,
   RotateCw,
   Settings,
   Shield,
@@ -706,8 +707,16 @@ function SidebarNavLink({ closeMobile, item, t }: SidebarNavLinkProps) {
 function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { activeAction, isBusy, isRunning, pendingAction, runAction } =
-    useSystemActions();
+  const {
+    activeAction,
+    checkUpdate,
+    isBusy,
+    isRunning,
+    pendingAction,
+    runAction,
+    updateCheck,
+    updateCheckLoading,
+  } = useSystemActions();
 
   const items: SystemActionItem[] = [
     {
@@ -726,11 +735,34 @@ function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
     },
   ];
 
+  const updateStatus = updateCheck
+    ? updateCheck.dirty
+      ? updateCheck.behind_upstream > 0
+        ? t.status.updateBlockedDirtyWithCount.replace(
+            "{count}",
+            String(updateCheck.behind_upstream),
+          )
+        : t.status.updateBlockedDirty
+      : !updateCheck.can_update
+        ? t.status.updateBlocked.replace("{reason}", updateCheck.reason)
+        : updateCheck.behind_upstream > 0
+          ? t.status.updateAvailable.replace(
+              "{count}",
+              String(updateCheck.behind_upstream),
+            )
+          : t.status.noUpdateAvailable
+    : null;
+
   const handleClick = (action: SystemAction) => {
     if (isBusy) return;
     void runAction(action);
     navigate("/sessions");
     onNavigate();
+  };
+
+  const handleCheckUpdates = () => {
+    if (isBusy || updateCheckLoading) return;
+    void checkUpdate();
   };
 
   return (
@@ -753,13 +785,62 @@ function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
       <SidebarStatusStrip />
 
       <ul className="flex flex-col">
+        <li>
+          <ListItem
+            onClick={handleCheckUpdates}
+            disabled={isBusy || updateCheckLoading}
+            aria-busy={updateCheckLoading}
+            active={updateCheckLoading}
+            title={t.status.localizedUpdateHint}
+            className={cn(
+              "gap-3 px-5 py-1.5 whitespace-nowrap",
+              "font-mondwest text-[0.75rem] tracking-[0.1em]",
+              "transition-opacity",
+              updateCheckLoading
+                ? "text-midground opacity-100"
+                : "opacity-60 hover:opacity-100",
+              "disabled:opacity-30",
+            )}
+          >
+            {updateCheckLoading ? (
+              <Spinner className="shrink-0 text-[0.875rem]" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+            )}
+
+            <span className="truncate">
+              {updateCheckLoading
+                ? t.status.checkingUpdates
+                : t.status.checkUpdates}
+            </span>
+          </ListItem>
+        </li>
+
+        {updateStatus && (
+          <li>
+            <div
+              className={cn(
+                "px-5 pb-1.5 pt-0",
+                "normal-case text-[0.64rem] leading-snug tracking-normal",
+                updateCheck?.can_update
+                  ? "text-midground/55"
+                  : "text-midground/80",
+              )}
+            >
+              {updateStatus}
+            </div>
+          </li>
+        )}
+
         {items.map(({ action, icon: Icon, label, runningLabel, spin }) => {
           const isPending = pendingAction === action;
           const isActionRunning =
             activeAction === action && isRunning && !isPending;
           const busy = isPending || isActionRunning;
           const displayLabel = isActionRunning ? runningLabel : label;
-          const disabled = isBusy && !busy;
+          const disabled =
+            (isBusy && !busy) ||
+            (action === "update" && updateCheck?.can_update === false);
 
           return (
             <li key={action}>

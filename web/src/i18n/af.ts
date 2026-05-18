@@ -122,6 +122,16 @@ export const af: Translations = {
     stopped: "Gestop",
     updateHermes: "Werk Hermes op",
     updatingHermes: "Besig om Hermes op te werk…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "Wag vir uitset…",
   },
 
@@ -390,6 +400,8 @@ export const af: Translations = {
     noProviders: "Geen OAuth-bekwame verskaffers opgespoor nie.",
     login: "Meld aan",
     disconnect: "Ontkoppel",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "Ekstern bestuur",
     copied: "Gekopieer ✓",
     cli: "CLI",

@@ -122,6 +122,16 @@ export const uk: Translations = {
     stopped: "Зупинено",
     updateHermes: "Оновити Hermes",
     updatingHermes: "Оновлення Hermes…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "Очікування виводу…",
   },
 
@@ -390,6 +400,8 @@ export const uk: Translations = {
     noProviders: "Не виявлено постачальників із підтримкою OAuth.",
     login: "Увійти",
     disconnect: "Відключити",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "Керується ззовні",
     copied: "Скопійовано ✓",
     cli: "CLI",

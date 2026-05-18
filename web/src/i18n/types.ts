@@ -139,6 +139,15 @@ export interface Translations {
     stopped: string;
     updateHermes: string;
     updatingHermes: string;
+    checkUpdates: string;
+    checkingUpdates: string;
+    updateAvailable: string;
+    noUpdateAvailable: string;
+    updateCheckFailed: string;
+    localizedUpdateHint: string;
+    updateBlocked: string;
+    updateBlockedDirty: string;
+    updateBlockedDirtyWithCount: string;
     waitingForOutput: string;
   };
 
@@ -411,6 +420,7 @@ export interface Translations {
     noProviders: string;
     login: string;
     disconnect: string;
+    disconnectConfirm: string;
     managedExternally: string;
     copied: string;
     cli: string;

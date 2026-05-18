@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import type { GatewayClient } from "@/lib/gatewayClient";
 import { Check, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/i18n";
 
 /**
  * Two-stage model picker modal.
@@ -70,10 +71,11 @@ export function ModelPickerDialog(props: Props) {
     loader,
     onApply,
     onClose,
-    title = "Switch Model",
+    title = "切换模型",
     alwaysGlobal = false,
   } = props;
   const standalone = !!loader && !!onApply;
+  const { t } = useI18n();
 
   const [providers, setProviders] = useState<ModelOptionProvider[]>([]);
   const [currentModel, setCurrentModel] = useState("");
@@ -208,7 +210,7 @@ export function ModelPickerDialog(props: Props) {
           size="icon"
           onClick={onClose}
           className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-          aria-label="Close"
+          aria-label={t.common.close}
         >
           <X />
         </Button>
@@ -221,7 +223,7 @@ export function ModelPickerDialog(props: Props) {
             {title}
           </h2>
           <p className="text-xs text-muted-foreground mt-1 font-mono">
-            current: {currentModel || "(unknown)"}
+            当前：{currentModel || t.common.unknown}
             {currentProviderSlug && ` · ${currentProviderSlug}`}
           </p>
         </header>
@@ -231,7 +233,7 @@ export function ModelPickerDialog(props: Props) {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               autoFocus
-              placeholder="Filter providers and models…"
+              placeholder="筛选提供商和模型…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-7 h-8 text-sm"
@@ -272,7 +274,7 @@ export function ModelPickerDialog(props: Props) {
         <footer className="border-t border-border p-3 flex items-center justify-between gap-3 flex-wrap">
           {alwaysGlobal ? (
             <span className="text-xs text-muted-foreground">
-              Saves to config.yaml — applies to new sessions.
+              保存到 config.yaml，对新会话生效。
             </span>
           ) : (
             <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
@@ -282,16 +284,16 @@ export function ModelPickerDialog(props: Props) {
                 onChange={(e) => setPersistGlobal(e.target.checked)}
                 className="cursor-pointer"
               />
-              Persist globally (otherwise this session only)
+              全局保存（否则仅当前会话）
             </label>
           )}
 
           <div className="flex items-center gap-2 ml-auto">
             <Button outlined onClick={onClose} disabled={applying}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button onClick={confirm} disabled={!canConfirm}>
-              {applying ? <Spinner /> : "Switch"}
+              {applying ? <Spinner /> : "切换"}
             </Button>
           </div>
         </footer>
@@ -325,7 +327,7 @@ function ProviderColumn({
     <div className="border-r border-border overflow-y-auto">
       {loading && (
         <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
-          <Spinner className="text-xs" /> loading…
+          <Spinner className="text-xs" /> 加载中…
         </div>
       )}
 
@@ -334,10 +336,10 @@ function ProviderColumn({
       {!loading && !error && providers.length === 0 && (
         <div className="p-4 text-xs text-muted-foreground italic">
           {query
-            ? "no matches"
+            ? "没有匹配项"
             : total === 0
-              ? "no authenticated providers"
-              : "no matches"}
+              ? "没有已认证的提供商"
+              : "没有匹配项"}
         </div>
       )}
 
@@ -358,7 +360,7 @@ function ProviderColumn({
                 {p.is_current && <CurrentTag />}
               </div>
               <div className="text-[0.65rem] text-muted-foreground/80 font-mono truncate">
-                {p.slug} · {p.total_models ?? p.models?.length ?? 0} models
+                {p.slug} · {p.total_models ?? p.models?.length ?? 0} 个模型
               </div>
             </div>
           </ListItem>
@@ -395,7 +397,7 @@ function ModelColumn({
     return (
       <div className="overflow-y-auto">
         <div className="p-4 text-xs text-muted-foreground italic">
-          pick a provider →
+          请选择提供商 →
         </div>
       </div>
     );
@@ -412,8 +414,8 @@ function ModelColumn({
       {models.length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground italic">
           {allModels.length
-            ? "no models match your filter"
-            : "no models listed for this provider"}
+            ? "没有匹配筛选条件的模型"
+            : "该提供商没有列出模型"}
         </div>
       ) : (
         models.map((m) => {
@@ -445,7 +447,7 @@ function ModelColumn({
 function CurrentTag() {
   return (
     <span className="text-[0.6rem] uppercase tracking-wider text-primary/80 shrink-0">
-      current
+      当前
     </span>
   );
 }

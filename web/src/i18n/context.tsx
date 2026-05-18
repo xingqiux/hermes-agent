@@ -73,6 +73,23 @@ function getInitialLocale(): Locale {
   } catch {
     // SSR or privacy mode
   }
+
+  if (typeof navigator !== "undefined") {
+    const languages = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language].filter(Boolean);
+    for (const lang of languages) {
+      const normalized = lang.toLowerCase();
+      if (normalized === "zh-tw" || normalized === "zh-hk" || normalized === "zh-mo") {
+        return "zh-hant";
+      }
+      if (normalized.startsWith("zh")) {
+        return "zh";
+      }
+      const base = normalized.split("-")[0];
+      if (base && isLocale(base)) return base;
+    }
+  }
   return "en";
 }
 

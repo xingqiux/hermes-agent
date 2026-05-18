@@ -837,8 +837,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           <Button
             ghost
             onClick={handleCopyLast}
-            title="Copy last assistant response as raw markdown"
-            aria-label="Copy last assistant response"
+            title="复制上一条助手回复的原始 Markdown"
+            aria-label="复制上一条助手回复"
             className={cn(
               "absolute z-10",
               "rounded border border-current/30",

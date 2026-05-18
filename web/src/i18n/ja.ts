@@ -122,6 +122,16 @@ export const ja: Translations = {
     stopped: "停止",
     updateHermes: "Hermes を更新",
     updatingHermes: "Hermes を更新しています…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "出力を待機しています…",
   },
 
@@ -390,6 +400,8 @@ export const ja: Translations = {
     noProviders: "OAuth 対応プロバイダーは検出されませんでした。",
     login: "ログイン",
     disconnect: "切断",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "外部で管理",
     copied: "コピーしました ✓",
     cli: "CLI",

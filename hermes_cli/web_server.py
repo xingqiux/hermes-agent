@@ -656,6 +656,7 @@ _ACTION_LOG_DIR: Path = get_hermes_home() / "logs"
 _ACTION_LOG_FILES: Dict[str, str] = {
     "gateway-restart": "gateway-restart.log",
     "hermes-update": "hermes-update.log",
+    "hermes-localized-update": "hermes-localized-update.log",
 }
 
 # ``name`` → most recently spawned Popen handle.  Used so ``status`` can
@@ -663,12 +664,8 @@ _ACTION_LOG_FILES: Dict[str, str] = {
 _ACTION_PROCS: Dict[str, subprocess.Popen] = {}
 
 
-def _spawn_hermes_action(subcommand: List[str], name: str) -> subprocess.Popen:
-    """Spawn ``hermes <subcommand>`` detached and record the Popen handle.
-
-    Uses the running interpreter's ``hermes_cli.main`` module so the action
-    inherits the same venv/PYTHONPATH the web server is using.
-    """
+def _spawn_action_command(cmd: List[str], name: str) -> subprocess.Popen:
+    """Spawn a detached action command and record the Popen handle."""
     log_file_name = _ACTION_LOG_FILES[name]
     _ACTION_LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_path = _ACTION_LOG_DIR / log_file_name
@@ -676,8 +673,6 @@ def _spawn_hermes_action(subcommand: List[str], name: str) -> subprocess.Popen:
     log_file.write(
         f"\n=== {name} started {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n".encode()
     )
-
-    cmd = [sys.executable, "-m", "hermes_cli.main", *subcommand]
 
     popen_kwargs: Dict[str, Any] = {
         "cwd": str(PROJECT_ROOT),
@@ -697,6 +692,23 @@ def _spawn_hermes_action(subcommand: List[str], name: str) -> subprocess.Popen:
     proc = subprocess.Popen(cmd, **popen_kwargs)
     _ACTION_PROCS[name] = proc
     return proc
+
+
+def _spawn_hermes_action(subcommand: List[str], name: str) -> subprocess.Popen:
+    """Spawn ``hermes <subcommand>`` detached and record the Popen handle.
+
+    Uses the running interpreter's ``hermes_cli.main`` module so the action
+    inherits the same venv/PYTHONPATH the web server is using.
+    """
+    return _spawn_action_command(
+        [sys.executable, "-m", "hermes_cli.main", *subcommand],
+        name,
+    )
+
+
+def _spawn_python_module_action(module: str, args: List[str], name: str) -> subprocess.Popen:
+    """Spawn ``python -m <module>`` detached and record the Popen handle."""
+    return _spawn_action_command([sys.executable, "-m", module, *args], name)
 
 
 def _tail_lines(path: Path, n: int) -> List[str]:
@@ -740,6 +752,49 @@ async def update_hermes():
         "ok": True,
         "pid": proc.pid,
         "name": "hermes-update",
+    }
+
+
+@app.get("/api/hermes/update/check")
+async def check_hermes_update():
+    """Check official upstream/main status for the localized fork."""
+    try:
+        from hermes_cli.localized_update import check_update_status
+
+        status = check_update_status(fetch=True)
+    except Exception as exc:
+        _log.exception("Failed to check localized hermes update")
+        raise HTTPException(status_code=500, detail=f"Failed to check updates: {exc}")
+    return {
+        "current_branch": status.current_branch,
+        "local_commit": status.local_commit,
+        "origin_commit": status.origin_commit,
+        "upstream_commit": status.upstream_commit,
+        "behind_upstream": status.behind_upstream,
+        "ahead_upstream": status.ahead_upstream,
+        "dirty": status.dirty,
+        "can_update": status.can_update,
+        "reason": status.reason,
+        "last_checked_at": status.last_checked_at,
+    }
+
+
+@app.post("/api/hermes/update/localized")
+async def update_hermes_localized():
+    """Kick off localized fork update in the background."""
+    try:
+        proc = _spawn_python_module_action(
+            "hermes_cli.localized_update",
+            ["apply"],
+            "hermes-localized-update",
+        )
+    except Exception as exc:
+        _log.exception("Failed to spawn localized hermes update")
+        raise HTTPException(status_code=500, detail=f"Failed to start localized update: {exc}")
+    return {
+        "ok": True,
+        "pid": proc.pid,
+        "name": "hermes-localized-update",
     }
 
 

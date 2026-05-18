@@ -5620,7 +5620,7 @@ def cmd_import(args):
 def cmd_version(args):
     """Show version."""
     print(f"Hermes Agent v{__version__} ({__release_date__})")
-    print(f"Project: {PROJECT_ROOT}")
+    print(f"项目路径: {PROJECT_ROOT}")
 
     # Show Python version
     print(f"Python: {sys.version.split()[0]}")
@@ -5634,9 +5634,9 @@ def cmd_version(args):
         try:
             print(f"OpenAI SDK: {_pkg_version('openai')}")
         except PackageNotFoundError:
-            print("OpenAI SDK: Not installed")
+            print("OpenAI SDK: 未安装")
     except ImportError:
-        print("OpenAI SDK: Not installed")
+        print("OpenAI SDK: 未安装")
 
     # Show update status (synchronous — acceptable since user asked for version info)
     try:
@@ -5645,13 +5645,12 @@ def cmd_version(args):
 
         behind = check_for_updates()
         if behind and behind > 0:
-            commits_word = "commit" if behind == 1 else "commits"
             print(
-                f"Update available: {behind} {commits_word} behind — "
-                f"run '{recommended_update_command()}'"
+                f"发现更新：落后 {behind} 个提交 — "
+                f"运行 '{recommended_update_command()}'"
             )
         elif behind == 0:
-            print("Up to date")
+            print("已是最新")
     except Exception:
         pass
 
@@ -9575,10 +9574,13 @@ def _report_dashboard_status() -> int:
     """
     pids = _find_stale_dashboard_pids()
     if not pids:
-        print("No hermes dashboard processes running.")
+        print("没有正在运行的 hermes dashboard 进程。 / No hermes dashboard processes running.")
         return 0
 
-    print(f"{len(pids)} hermes dashboard process(es) running:")
+    print(
+        f"发现 {len(pids)} 个正在运行的 hermes dashboard 进程： / "
+        f"{len(pids)} hermes dashboard process(es) running:"
+    )
     for pid in pids:
         # Best-effort: show the full cmdline so users can tell profiles apart.
         cmdline = ""
@@ -9613,7 +9615,7 @@ def cmd_dashboard(args):
     if getattr(args, "stop", False):
         pids = _find_stale_dashboard_pids()
         if not pids:
-            print("No hermes dashboard processes running.")
+            print("没有正在运行的 hermes dashboard 进程。 / No hermes dashboard processes running.")
             sys.exit(0)
         # Reuse the same SIGTERM-grace-SIGKILL path used after `hermes update`.
         _kill_stale_dashboard_processes(reason="requested via --stop")
@@ -9626,14 +9628,14 @@ def cmd_dashboard(args):
         import fastapi  # noqa: F401
         import uvicorn  # noqa: F401
     except ImportError as e:
-        print("Web UI dependencies not installed (need fastapi + uvicorn).")
+        print("Web UI 依赖未安装（需要 fastapi + uvicorn）。")
         print(
-            f"Re-install the package into this interpreter so metadata updates apply:\n"
+            f"请在当前解释器中重新安装本项目，让包元数据生效：\n"
             f"  cd {PROJECT_ROOT}\n"
             f"  {sys.executable} -m pip install -e .\n"
-            "If `pip` is missing in this venv, use:  uv pip install -e ."
+            "如果这个 venv 里没有 `pip`，请使用：  uv pip install -e ."
         )
-        print(f"Import error: {e}")
+        print(f"导入错误：{e}")
         sys.exit(1)
 
     if "HERMES_WEB_DIST" not in os.environ and not getattr(args, "skip_build", False):

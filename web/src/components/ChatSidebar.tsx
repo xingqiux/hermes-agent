@@ -311,7 +311,7 @@ export function ChatSidebar({ channel, className }: ChatSidebarProps) {
       <Card className="flex items-center justify-between gap-2 px-3 py-2">
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            model
+            模型
           </div>
 
           <Button
@@ -325,7 +325,7 @@ export function ChatSidebar({ channel, className }: ChatSidebarProps) {
               ) : undefined
             }
             className="self-start min-w-0 px-0 py-0 normal-case tracking-normal text-sm font-medium hover:underline disabled:no-underline"
-            title={info.model ?? "switch model"}
+            title={info.model ?? "切换模型"}
           >
             <span className="truncate">{modelLabel}</span>
           </Button>
@@ -349,7 +349,7 @@ export function ChatSidebar({ channel, className }: ChatSidebarProps) {
                 onClick={reconnect}
                 prefix={<RefreshCw />}
               >
-                reconnect
+                重新连接
               </Button>
             )}
           </div>
@@ -358,13 +358,13 @@ export function ChatSidebar({ channel, className }: ChatSidebarProps) {
 
       <Card className="flex min-h-0 flex-none flex-col px-2 py-2">
         <div className="px-1 pb-2 text-xs uppercase tracking-wider text-muted-foreground">
-          tools
+          工具
         </div>
 
         <div className="flex min-h-0 flex-col gap-1.5">
           {tools.length === 0 ? (
             <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-              no tool calls yet
+              暂无工具调用
             </div>
           ) : (
             tools.map((t) => <ToolCall key={t.id} tool={t} />)

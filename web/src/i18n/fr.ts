@@ -122,6 +122,16 @@ export const fr: Translations = {
     stopped: "Arrêté",
     updateHermes: "Mettre à jour Hermes",
     updatingHermes: "Mise à jour de Hermes…",
+    checkUpdates: "Check Updates",
+    checkingUpdates: "Checking updates…",
+    updateAvailable: "Official upstream has {count} new commit(s)",
+    noUpdateAvailable: "Already up to date with upstream/main",
+    updateCheckFailed: "Update check failed",
+    localizedUpdateHint: "Checks official upstream/main and preserves local localization commits.",
+    updateBlocked: "Cannot update: {reason}",
+    updateBlockedDirty: "Working tree has uncommitted changes; update is blocked.",
+    updateBlockedDirtyWithCount:
+      "Official upstream has {count} new commit(s), but uncommitted local changes block the update.",
     waitingForOutput: "En attente de la sortie…",
   },
 
@@ -390,6 +400,8 @@ export const fr: Translations = {
     noProviders: "Aucun fournisseur compatible OAuth détecté.",
     login: "Connexion",
     disconnect: "Déconnecter",
+    disconnectConfirm:
+      "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again.",
     managedExternally: "Géré en externe",
     copied: "Copié ✓",
     cli: "CLI",

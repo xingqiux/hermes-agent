@@ -577,8 +577,8 @@ function AuxiliaryTasksModal({
                   </div>
                   <div className="text-[10px] font-mono text-muted-foreground truncate">
                     {isAuto
-                      ? "auto (use main model)"
-                      : `${cur?.provider} · ${cur?.model || "(provider default)"}`}
+                      ? "自动（使用主模型）"
+                      : `${cur?.provider} · ${cur?.model || "提供商默认值"}`}
                   </div>
                 </div>
                 <Button
@@ -587,7 +587,7 @@ function AuxiliaryTasksModal({
                   onClick={() => setPicker({ kind: "aux", task: t.key })}
                   className="text-[10px] h-6"
                 >
-                  Change
+                  更改
                 </Button>
               </div>
             );
@@ -599,7 +599,7 @@ function AuxiliaryTasksModal({
             key={`picker-${refreshKey}`}
             loader={api.getModelOptions}
             alwaysGlobal
-            title={`Set Auxiliary: ${
+            title={`设置辅助模型：${
               AUX_TASKS.find((t) => t.key === picker.task)?.label ??
               picker.task
             }`}
@@ -619,7 +619,7 @@ function AuxiliaryTasksModal({
           open={confirmReset}
           onCancel={() => setConfirmReset(false)}
           onConfirm={() => void resetAllAux()}
-          title="Reset auxiliary models"
+          title="重置辅助模型"
           description="Reset every auxiliary task to 'auto'? This overrides any per-task overrides you've set."
           destructive
           confirmLabel="Reset all"
@@ -686,13 +686,13 @@ function ModelSettingsPanel({
             <div className="flex items-center gap-2 mb-0.5">
               <Star className="h-3 w-3 text-primary" />
               <span className="text-xs font-medium uppercase tracking-wider">
-                Main model
+                主模型
               </span>
             </div>
             <div className="text-xs font-mono text-muted-foreground truncate">
-              {mainProv || "(unset)"}
+              {mainProv || "未设置"}
               {mainProv && mainModel && " · "}
-              {mainModel || "(unset)"}
+              {mainModel || "未设置"}
             </div>
           </div>
           <Button
@@ -700,7 +700,7 @@ function ModelSettingsPanel({
             onClick={() => setPicker({ kind: "main" })}
             className="text-xs"
           >
-            Change
+            更改
           </Button>
         </div>
 
@@ -710,13 +710,13 @@ function ModelSettingsPanel({
             <div className="flex items-center gap-2 mb-0.5">
               <Cpu className="h-3 w-3 text-muted-foreground" />
               <span className="text-xs font-medium uppercase tracking-wider">
-                Auxiliary tasks
+                辅助任务
               </span>
             </div>
             <div className="text-xs font-mono text-muted-foreground truncate">
               {auxOverrideCount > 0
-                ? `${auxOverrideCount} override${auxOverrideCount > 1 ? "s" : ""} · ${AUX_TASKS.length - auxOverrideCount} auto`
-                : `${AUX_TASKS.length} tasks · all auto`}
+                ? `${auxOverrideCount} 个覆盖 · ${AUX_TASKS.length - auxOverrideCount} 个自动`
+                : `${AUX_TASKS.length} 个任务 · 全部自动`}
             </div>
           </div>
           <Button
@@ -725,7 +725,7 @@ function ModelSettingsPanel({
             onClick={() => setAuxModalOpen(true)}
             className="text-xs"
           >
-            Configure
+            配置
           </Button>
         </div>
 
@@ -734,7 +734,7 @@ function ModelSettingsPanel({
             key={`picker-${refreshKey}`}
             loader={api.getModelOptions}
             alwaysGlobal
-            title="Set Main Model"
+            title="设置主模型"
             onApply={async ({ provider, model }) => {
               await applyAssignment({
                 scope: "main",
