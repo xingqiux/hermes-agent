@@ -9,8 +9,8 @@ REMOTE_DATA_DIR ?= /home/ziyu/services/hermes-agent-data
 REMOTE_UID ?= 1001
 REMOTE_GID ?= 1001
 
-COMMIT := $(shell git rev-parse HEAD)
-SHORT_COMMIT := $(shell git rev-parse --short HEAD)
+COMMIT = $(shell git rev-parse HEAD)
+SHORT_COMMIT = $(shell git rev-parse --short HEAD)
 TAG ?= $(SHORT_COMMIT)
 
 .PHONY: help status check-clean pull build push publish deploy update
@@ -23,7 +23,7 @@ help:
 	@echo "  make push     - push $(IMAGE):$(TAG) and :latest"
 	@echo "  make publish  - build and push"
 	@echo "  make deploy   - copy compose to $(REMOTE), pull image, docker compose up -d"
-	@echo "  make update   - pull, publish, deploy"
+	@echo "  make update   - pull remote changes, publish and deploy only when code changed"
 
 status:
 	@git status --short --branch
@@ -62,4 +62,18 @@ deploy:
 	scp docker-compose.xkqq.yml $(REMOTE):$(REMOTE_DIR)/docker-compose.yml
 	ssh $(REMOTE) 'cd $(REMOTE_DIR) && HERMES_IMAGE=$(IMAGE):latest HERMES_DATA_DIR=$(REMOTE_DATA_DIR) HERMES_UID=$(REMOTE_UID) HERMES_GID=$(REMOTE_GID) docker compose pull && HERMES_IMAGE=$(IMAGE):latest HERMES_DATA_DIR=$(REMOTE_DATA_DIR) HERMES_UID=$(REMOTE_UID) HERMES_GID=$(REMOTE_GID) docker compose up -d'
 
-update: pull publish deploy
+update: check-clean
+	@set -e; \
+	before=$$(git rev-parse HEAD); \
+	git fetch origin $(REF); \
+	git rebase origin/$(REF); \
+	after=$$(git rev-parse HEAD); \
+	if [ "$$before" = "$$after" ]; then \
+		echo "No code updates on origin/$(REF); skipping build, push, and deploy."; \
+		exit 0; \
+	fi; \
+	tag=$$(git rev-parse --short HEAD); \
+	commit=$$(git rev-parse HEAD); \
+	echo "Updated $$before..$$after; publishing $(IMAGE):$$tag and :latest"; \
+	$(MAKE) publish COMMIT=$$commit TAG=$$tag; \
+	$(MAKE) deploy TAG=$$tag
