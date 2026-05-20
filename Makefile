@@ -8,6 +8,8 @@ REMOTE_DIR ?= /home/ziyu/services/hermes-agent
 REMOTE_DATA_DIR ?= /home/ziyu/services/hermes-agent-data
 REMOTE_UID ?= 1001
 REMOTE_GID ?= 1001
+force ?= 0
+FORCE ?= $(force)
 
 COMMIT = $(shell git rev-parse HEAD)
 SHORT_COMMIT = $(shell git rev-parse --short HEAD)
@@ -24,6 +26,8 @@ help:
 	@echo "  make publish  - build and push"
 	@echo "  make deploy   - copy compose to $(REMOTE), pull image, docker compose up -d"
 	@echo "  make update   - pull remote changes, publish and deploy only when code changed"
+	@echo "  make update FORCE=1 - rebuild, push, and deploy even when source is current"
+	@echo "                         also accepts lowercase: make update force=1"
 
 status:
 	@git status --short --branch
@@ -69,11 +73,22 @@ update: check-clean
 	git rebase origin/$(REF); \
 	after=$$(git rev-parse HEAD); \
 	if [ "$$before" = "$$after" ]; then \
-		echo "No code updates on origin/$(REF); skipping build, push, and deploy."; \
-		exit 0; \
+		case "$(FORCE)" in \
+			1|true|TRUE|yes|YES|on|ON) \
+				echo "No code updates on origin/$(REF), but FORCE=$(FORCE); publishing current source."; \
+				;; \
+			*) \
+				echo "No code updates on origin/$(REF); skipping build, push, and deploy."; \
+				exit 0; \
+				;; \
+		esac; \
 	fi; \
 	tag=$$(git rev-parse --short HEAD); \
 	commit=$$(git rev-parse HEAD); \
-	echo "Updated $$before..$$after; publishing $(IMAGE):$$tag and :latest"; \
+	if [ "$$before" = "$$after" ]; then \
+		echo "Publishing $(IMAGE):$$tag and :latest"; \
+	else \
+		echo "Updated $$before..$$after; publishing $(IMAGE):$$tag and :latest"; \
+	fi; \
 	$(MAKE) publish COMMIT=$$commit TAG=$$tag; \
 	$(MAKE) deploy TAG=$$tag
