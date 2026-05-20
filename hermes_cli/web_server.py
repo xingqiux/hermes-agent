@@ -656,7 +656,6 @@ _ACTION_LOG_DIR: Path = get_hermes_home() / "logs"
 _ACTION_LOG_FILES: Dict[str, str] = {
     "gateway-restart": "gateway-restart.log",
     "hermes-update": "hermes-update.log",
-    "hermes-localized-update": "hermes-localized-update.log",
 }
 
 # ``name`` → most recently spawned Popen handle.  Used so ``status`` can
@@ -776,25 +775,6 @@ async def check_hermes_update():
         "can_update": status.can_update,
         "reason": status.reason,
         "last_checked_at": status.last_checked_at,
-    }
-
-
-@app.post("/api/hermes/update/localized")
-async def update_hermes_localized():
-    """Kick off localized fork update in the background."""
-    try:
-        proc = _spawn_python_module_action(
-            "hermes_cli.localized_update",
-            ["apply"],
-            "hermes-localized-update",
-        )
-    except Exception as exc:
-        _log.exception("Failed to spawn localized hermes update")
-        raise HTTPException(status_code=500, detail=f"Failed to start localized update: {exc}")
-    return {
-        "ok": True,
-        "pid": proc.pid,
-        "name": "hermes-localized-update",
     }
 
 

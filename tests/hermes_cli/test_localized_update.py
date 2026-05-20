@@ -45,10 +45,16 @@ class GitSim:
             return _cp(args, 0 if self.has_origin else 2)
         if args[:3] == ["remote", "get-url", "upstream"]:
             return _cp(args, 0 if self.has_upstream else 2)
+        if args[:2] == ["rev-parse", "--is-inside-work-tree"]:
+            return _cp(args, stdout="true\n")
         if args[:3] == ["rev-parse", "--abbrev-ref", "HEAD"]:
             return _cp(args, stdout=f"{self.branch}\n")
         if args[:3] == ["rev-parse", "--short", "HEAD"]:
             return _cp(args, stdout="local123\n")
+        if args[:2] == ["rev-parse", "HEAD"]:
+            return _cp(args, stdout="local123full\n")
+        if args[:2] == ["rev-parse", "origin/main"]:
+            return _cp(args, 0 if self.has_origin else 128, stdout="origin123full\n" if self.has_origin else "")
         if args[:3] == ["rev-parse", "--short", "origin/main"]:
             return _cp(args, 0 if self.has_origin else 128, stdout="origin123\n" if self.has_origin else "")
         if args[:3] == ["rev-parse", "--short", "upstream/main"]:
@@ -92,7 +98,7 @@ def test_check_dirty_repo_blocks_update_and_reports_status(monkeypatch):
     sim = GitSim(dirty=" M uv.lock\n?? scratch.txt\n")
     monkeypatch.setattr(lu, "_git", sim)
 
-    status = lu.check_update_status(fetch=True)
+    status = lu._check_merge_update_status(fetch=True)
 
     assert status.can_update is False
     assert status.dirty is True
@@ -104,10 +110,54 @@ def test_check_missing_upstream_blocks_update(monkeypatch):
     sim = GitSim(has_upstream=False)
     monkeypatch.setattr(lu, "_git", sim)
 
-    status = lu.check_update_status(fetch=True)
+    status = lu._check_merge_update_status(fetch=True)
 
     assert status.can_update is False
     assert "Missing upstream remote" in status.reason
+
+
+def test_dashboard_check_uses_origin_without_mutating(monkeypatch):
+    sim = GitSim(behind_origin=2, behind_upstream=9)
+    monkeypatch.setattr(lu, "_git", sim)
+
+    status = lu.check_update_status(fetch=True)
+
+    assert status.can_update is True
+    assert status.behind_upstream == 2
+    assert status.upstream_commit == "origin123ful"
+    commands = [" ".join(call) for call in sim.calls]
+    assert "merge --no-edit upstream/main" not in commands
+    assert "push origin main" not in commands
+
+
+def test_check_container_deployment_reports_new_remote_commit(monkeypatch):
+    monkeypatch.setattr(lu, "_git", lambda args, *, check=False: _cp(args, 128))
+    monkeypatch.setattr(lu, "_is_container_deployment", lambda: True)
+    monkeypatch.setattr(lu, "_read_build_commit", lambda: "aaa111")
+    monkeypatch.setattr(lu, "_remote_commit", lambda: "bbb222")
+
+    status = lu.check_update_status(fetch=True)
+
+    assert status.current_branch == "container"
+    assert status.can_update is True
+    assert status.behind_upstream == 1
+    assert status.local_commit == "aaa111"
+    assert status.upstream_commit == "bbb222"
+    assert "Rebuild" in status.reason
+
+
+def test_check_non_git_install_reports_current_remote_commit(monkeypatch):
+    monkeypatch.setattr(lu, "_git", lambda args, *, check=False: _cp(args, 128))
+    monkeypatch.setattr(lu, "_is_container_deployment", lambda: False)
+    monkeypatch.setattr(lu, "_read_build_commit", lambda: "same123")
+    monkeypatch.setattr(lu, "_remote_commit", lambda: "same123")
+
+    status = lu.check_update_status(fetch=True)
+
+    assert status.current_branch == "deployed"
+    assert status.can_update is False
+    assert status.behind_upstream == 0
+    assert "up to date" in status.reason
 
 
 def test_localized_update_never_calls_reset_hard(monkeypatch, no_build):

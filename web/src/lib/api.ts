@@ -270,8 +270,6 @@ export const api = {
     fetchJSON<ActionResponse>("/api/gateway/restart", { method: "POST" }),
   updateHermes: () =>
     fetchJSON<ActionResponse>("/api/hermes/update", { method: "POST" }),
-  updateHermesLocalized: () =>
-    fetchJSON<ActionResponse>("/api/hermes/update/localized", { method: "POST" }),
   checkHermesUpdate: () =>
     fetchJSON<UpdateCheckResponse>("/api/hermes/update/check"),
   getActionStatus: (name: string, lines = 200) =>

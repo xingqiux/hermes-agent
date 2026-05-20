@@ -22,7 +22,6 @@ import {
   Code,
   Cpu,
   Database,
-  Download,
   Eye,
   FileText,
   Globe,
@@ -726,32 +725,17 @@ function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
       runningLabel: t.status.restartingGateway,
       spin: true,
     },
-    {
-      action: "update",
-      icon: Download,
-      label: t.status.updateHermes,
-      runningLabel: t.status.updatingHermes,
-      spin: false,
-    },
   ];
 
   const updateStatus = updateCheck
-    ? updateCheck.dirty
-      ? updateCheck.behind_upstream > 0
-        ? t.status.updateBlockedDirtyWithCount.replace(
-            "{count}",
-            String(updateCheck.behind_upstream),
-          )
-        : t.status.updateBlockedDirty
-      : !updateCheck.can_update
-        ? t.status.updateBlocked.replace("{reason}", updateCheck.reason)
-        : updateCheck.behind_upstream > 0
-          ? t.status.updateAvailable.replace(
-              "{count}",
-              String(updateCheck.behind_upstream),
-            )
-          : t.status.noUpdateAvailable
+    ? updateCheck.behind_upstream > 0
+      ? t.status.updateAvailable.replace(
+          "{count}",
+          String(updateCheck.behind_upstream),
+        )
+      : t.status.noUpdateAvailable
     : null;
+  const hasUpdateAvailable = (updateCheck?.behind_upstream ?? 0) > 0;
 
   const handleClick = (action: SystemAction) => {
     if (isBusy) return;
@@ -822,9 +806,9 @@ function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
               className={cn(
                 "px-5 pb-1.5 pt-0",
                 "normal-case text-[0.64rem] leading-snug tracking-normal",
-                updateCheck?.can_update
-                  ? "text-midground/55"
-                  : "text-midground/80",
+                hasUpdateAvailable
+                  ? "text-midground/80"
+                  : "text-midground/55",
               )}
             >
               {updateStatus}
@@ -838,9 +822,7 @@ function SidebarSystemActions({ onNavigate }: { onNavigate: () => void }) {
             activeAction === action && isRunning && !isPending;
           const busy = isPending || isActionRunning;
           const displayLabel = isActionRunning ? runningLabel : label;
-          const disabled =
-            (isBusy && !busy) ||
-            (action === "update" && updateCheck?.can_update === false);
+          const disabled = isBusy && !busy;
 
           return (
             <li key={action}>

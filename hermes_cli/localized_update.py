@@ -20,6 +20,12 @@ from types import SimpleNamespace
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+LOCALIZED_REMOTE = os.environ.get(
+    "HERMES_LOCALIZED_REMOTE",
+    "https://github.com/xingqiux/hermes-agent.git",
+)
+LOCALIZED_REF = os.environ.get("HERMES_LOCALIZED_REF", "main")
+BUILD_INFO_PATH = PROJECT_ROOT / "hermes_cli" / "build_info.json"
 
 
 @dataclass
@@ -38,6 +44,15 @@ class UpdateCheck:
 
 class LocalizedUpdateError(RuntimeError):
     """Raised for expected update blockers with a user-facing message."""
+
+
+def _is_container_deployment() -> bool:
+    try:
+        from hermes_constants import is_container
+
+        return is_container()
+    except Exception:
+        return False
 
 
 def _now_iso() -> str:
@@ -81,6 +96,37 @@ def _remote_exists(name: str) -> bool:
     return _git(["remote", "get-url", name]).returncode == 0
 
 
+def _remote_commit() -> str | None:
+    result = subprocess.run(
+        ["git", "ls-remote", LOCALIZED_REMOTE, f"refs/heads/{LOCALIZED_REF}"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if result.returncode != 0:
+        return None
+    first = result.stdout.strip().split()
+    return first[0] if first else None
+
+
+def _read_build_commit() -> str | None:
+    if BUILD_INFO_PATH.exists():
+        try:
+            data = json.loads(BUILD_INFO_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        commit = data.get("commit") or data.get("git_commit")
+        if commit and str(commit) != "unknown":
+            return str(commit)
+    return _git_out(["rev-parse", "HEAD"])
+
+
+def _is_git_checkout() -> bool:
+    result = _git(["rev-parse", "--is-inside-work-tree"])
+    return result.returncode == 0 and result.stdout.strip().lower() == "true"
+
+
 def _count_range(expr: str) -> int:
     out = _git_out(["rev-list", "--count", expr])
     if out is None:
@@ -96,12 +142,93 @@ def _is_dirty() -> bool:
     return bool(status)
 
 
-def check_update_status(*, fetch: bool = True) -> UpdateCheck:
-    """Return update status against official ``upstream/main``.
+def _check_deployed_image_status(*, fetch: bool) -> UpdateCheck:
+    local_commit = _read_build_commit()
+    remote_commit = _remote_commit() if fetch else None
+    is_current = bool(local_commit and remote_commit and local_commit == remote_commit)
+    has_update = bool(local_commit and remote_commit and local_commit != remote_commit)
+    if has_update:
+        reason = "GitHub fork has a newer commit. Rebuild and redeploy the Docker image."
+    elif is_current:
+        reason = "Deployed image is up to date with the GitHub fork."
+    elif not local_commit:
+        reason = "Cannot read build commit from this installation."
+    else:
+        reason = "Cannot check the GitHub fork right now."
 
-    Fetching is safe with a dirty worktree, so the dashboard check still shows
-    the freshest upstream state even when the update action itself is blocked.
+    return UpdateCheck(
+        current_branch="container" if _is_container_deployment() else "deployed",
+        local_commit=local_commit[:12] if local_commit else None,
+        origin_commit=remote_commit[:12] if remote_commit else None,
+        upstream_commit=remote_commit[:12] if remote_commit else None,
+        behind_upstream=1 if has_update else 0,
+        ahead_upstream=0,
+        dirty=False,
+        can_update=has_update,
+        reason=reason,
+        last_checked_at=_now_iso(),
+    )
+
+
+def _check_github_fork_status(*, fetch: bool) -> UpdateCheck:
+    branch = _git_out(["rev-parse", "--abbrev-ref", "HEAD"]) or "unknown"
+    local_full = _git_out(["rev-parse", "HEAD"])
+    local_commit = _git_out(["rev-parse", "--short", "HEAD"])
+    dirty = _is_dirty()
+    remote_full: str | None = None
+    reason = "Already up to date with the GitHub fork."
+
+    if _remote_exists("origin"):
+        if fetch:
+            origin_fetch = _git(["fetch", "origin", LOCALIZED_REF])
+            if origin_fetch.returncode != 0:
+                reason = "Cannot check the GitHub fork right now."
+        remote_full = _git_out(["rev-parse", f"origin/{LOCALIZED_REF}"])
+        behind = _count_range(f"HEAD..origin/{LOCALIZED_REF}")
+        ahead = _count_range(f"origin/{LOCALIZED_REF}..HEAD")
+    else:
+        remote_full = _remote_commit() if fetch else None
+        behind = 1 if local_full and remote_full and local_full != remote_full else 0
+        ahead = 0
+
+    has_update = behind > 0
+    if has_update:
+        reason = "GitHub fork has a newer commit. Build and deploy with make update."
+    elif ahead > 0:
+        reason = "Local checkout is ahead of the GitHub fork."
+    elif not remote_full:
+        reason = "Cannot check the GitHub fork right now."
+
+    return UpdateCheck(
+        current_branch=branch,
+        local_commit=local_commit,
+        origin_commit=remote_full[:12] if remote_full else None,
+        upstream_commit=remote_full[:12] if remote_full else None,
+        behind_upstream=max(behind, 0),
+        ahead_upstream=max(ahead, 0),
+        dirty=dirty,
+        can_update=has_update,
+        reason=reason,
+        last_checked_at=_now_iso(),
+    )
+
+
+def check_update_status(*, fetch: bool = True) -> UpdateCheck:
+    """Return passive update status against the localized GitHub fork.
+
+    This is intentionally check-only. Dashboard no longer mutates the local
+    tree or container; Docker deployments are rebuilt and rolled out by the
+    Makefile workflow.
     """
+
+    if not _is_git_checkout():
+        return _check_deployed_image_status(fetch=fetch)
+
+    return _check_github_fork_status(fetch=fetch)
+
+
+def _check_merge_update_status(*, fetch: bool = True) -> UpdateCheck:
+    """Return source-merge status against official ``upstream/main``."""
 
     branch = _git_out(["rev-parse", "--abbrev-ref", "HEAD"]) or "unknown"
     local_commit = _git_out(["rev-parse", "--short", "HEAD"])
@@ -172,7 +299,7 @@ def _run_streamed(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
 
 
 def _ensure_clean_main() -> UpdateCheck:
-    status = check_update_status(fetch=True)
+    status = _check_merge_update_status(fetch=True)
     if not status.can_update and status.reason != "Already up to date with upstream/main.":
         raise LocalizedUpdateError(status.reason)
     return status

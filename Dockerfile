@@ -84,6 +84,29 @@ RUN uv sync --frozen --no-install-project --extra all --extra messaging
 # .dockerignore excludes node_modules, so the installs above survive.
 COPY --chown=hermes:hermes . .
 
+# Record the source revision in the image so deployed containers can compare
+# themselves with the GitHub fork without needing a .git directory.
+ARG HERMES_BUILD_COMMIT=unknown
+ARG HERMES_BUILD_REF=main
+ARG HERMES_BUILD_REMOTE=https://github.com/xingqiux/hermes-agent.git
+RUN python3 - <<EOF
+import json
+from pathlib import Path
+Path("/opt/hermes/hermes_cli/build_info.json").write_text(
+    json.dumps(
+        {
+            "commit": "$HERMES_BUILD_COMMIT",
+            "ref": "$HERMES_BUILD_REF",
+            "remote": "$HERMES_BUILD_REMOTE",
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+EOF
+
 # Build browser dashboard and terminal UI assets.
 RUN cd web && npm run build && \
     cd ../ui-tui && npm run build

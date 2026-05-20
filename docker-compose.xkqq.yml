@@ -1,0 +1,26 @@
+services:
+  gateway:
+    image: ${HERMES_IMAGE:-docker.xkqq.top/xingqiux/hermes-agent:latest}
+    container_name: hermes
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ${HERMES_DATA_DIR:-/home/ziyu/services/hermes-agent-data}:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-1001}
+      - HERMES_GID=${HERMES_GID:-1001}
+    command: ["gateway", "run"]
+
+  dashboard:
+    image: ${HERMES_IMAGE:-docker.xkqq.top/xingqiux/hermes-agent:latest}
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - gateway
+    volumes:
+      - ${HERMES_DATA_DIR:-/home/ziyu/services/hermes-agent-data}:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-1001}
+      - HERMES_GID=${HERMES_GID:-1001}
+    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]

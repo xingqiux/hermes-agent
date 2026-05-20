@@ -10,7 +10,6 @@ import {
 
 const ACTION_NAMES: Record<SystemAction, string> = {
   restart: "gateway-restart",
-  update: "hermes-localized-update",
 };
 
 export function SystemActionsProvider({
@@ -73,11 +72,7 @@ export function SystemActionsProvider({
       setPendingAction(action);
       setActionStatus(null);
       try {
-        if (action === "restart") {
-          await api.restartGateway();
-        } else {
-          await api.updateHermesLocalized();
-        }
+        await api.restartGateway();
         setActiveAction(action);
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
@@ -97,23 +92,15 @@ export function SystemActionsProvider({
     try {
       const resp = await api.checkHermesUpdate();
       setUpdateCheck(resp);
-      const message = resp.dirty
-        ? resp.behind_upstream > 0
-          ? t.status.updateBlockedDirtyWithCount.replace(
+      const message =
+        resp.behind_upstream > 0
+          ? t.status.updateAvailable.replace(
               "{count}",
               String(resp.behind_upstream),
             )
-          : t.status.updateBlockedDirty
-        : !resp.can_update
-          ? t.status.updateBlocked.replace("{reason}", resp.reason)
-          : resp.behind_upstream > 0
-            ? t.status.updateAvailable.replace(
-                "{count}",
-                String(resp.behind_upstream),
-              )
-            : t.status.noUpdateAvailable;
+          : t.status.noUpdateAvailable;
       setToast({
-        type: resp.can_update ? "success" : "error",
+        type: "success",
         message,
       });
     } catch (err) {
@@ -127,9 +114,6 @@ export function SystemActionsProvider({
     }
   }, [
     t.status.noUpdateAvailable,
-    t.status.updateBlocked,
-    t.status.updateBlockedDirty,
-    t.status.updateBlockedDirtyWithCount,
     t.status.updateAvailable,
     t.status.updateCheckFailed,
   ]);

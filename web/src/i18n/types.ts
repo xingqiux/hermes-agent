@@ -137,17 +137,12 @@ export interface Translations {
     starting: string;
     startedInBackground: string;
     stopped: string;
-    updateHermes: string;
-    updatingHermes: string;
     checkUpdates: string;
     checkingUpdates: string;
     updateAvailable: string;
     noUpdateAvailable: string;
     updateCheckFailed: string;
     localizedUpdateHint: string;
-    updateBlocked: string;
-    updateBlockedDirty: string;
-    updateBlockedDirtyWithCount: string;
     waitingForOutput: string;
   };
 
