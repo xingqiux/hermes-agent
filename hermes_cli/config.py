@@ -2252,6 +2252,23 @@ OPTIONAL_ENV_VARS = {
         "password": True,
         "category": "tool",
     },
+    "PACKYAPI_API_KEY": {
+        "description": "PackyAPI API key for gpt-image-2 image generation",
+        "prompt": "PackyAPI API key",
+        "url": "https://www.packyapi.com/",
+        "tools": ["image_generate"],
+        "password": True,
+        "category": "tool",
+    },
+    "PACKYAPI_BASE_URL": {
+        "description": "PackyAPI base URL override",
+        "prompt": "PackyAPI base URL (leave empty for default)",
+        "url": "https://www.packyapi.com/",
+        "tools": ["image_generate"],
+        "password": False,
+        "category": "tool",
+        "advanced": True,
+    },
     "VOICE_TOOLS_OPENAI_KEY": {
         "description": "OpenAI API key for voice transcription (Whisper) and OpenAI TTS",
         "prompt": "OpenAI API Key (for Whisper STT + TTS)",
@@ -4898,6 +4915,7 @@ def show_config():
         ("BROWSERBASE_API_KEY", "Browserbase"),
         ("BROWSER_USE_API_KEY", "Browser Use"),
         ("FAL_KEY", "FAL"),
+        ("PACKYAPI_API_KEY", "PackyAPI"),
     ]
     
     for env_key, name in keys:
@@ -5090,7 +5108,8 @@ def set_config_value(key: str, value: str):
         'FIRECRAWL_GATEWAY_URL', 'TOOL_GATEWAY_DOMAIN', 'TOOL_GATEWAY_SCHEME',
         'TOOL_GATEWAY_USER_TOKEN', 'TAVILY_API_KEY',
         'BROWSERBASE_API_KEY', 'BROWSERBASE_PROJECT_ID', 'BROWSER_USE_API_KEY',
-        'FAL_KEY', 'TELEGRAM_BOT_TOKEN', 'DISCORD_BOT_TOKEN',
+        'FAL_KEY', 'PACKYAPI_API_KEY', 'PACKYAPI_BASE_URL',
+        'TELEGRAM_BOT_TOKEN', 'DISCORD_BOT_TOKEN',
         'TERMINAL_SSH_HOST', 'TERMINAL_SSH_USER', 'TERMINAL_SSH_KEY',
         'SUDO_PASSWORD', 'SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN',
         'GITHUB_TOKEN', 'HONCHO_API_KEY',
