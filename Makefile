@@ -38,7 +38,7 @@ status:
 	@echo "REMOTE=$(REMOTE):$(REMOTE_DIR)"
 
 check-clean:
-	@test -z "$$(git status --porcelain)" || (git status --short && echo "Working tree must be clean before publishing/deploying." >&2 && exit 1)
+	@test -z "$$(git status --porcelain)" || (git status --short && echo "Working tree must be clean for this target." >&2 && exit 1)
 
 pull: check-clean
 	git fetch origin $(REF)
@@ -59,20 +59,31 @@ push:
 	docker push $(IMAGE):$(TAG)
 	docker push $(IMAGE):latest
 
-publish: check-clean build push
+publish: build push
 
 deploy:
 	ssh $(REMOTE) 'mkdir -p $(REMOTE_DIR) $(REMOTE_DATA_DIR)'
 	scp docker-compose.xkqq.yml $(REMOTE):$(REMOTE_DIR)/docker-compose.yml
 	ssh $(REMOTE) 'cd $(REMOTE_DIR) && HERMES_IMAGE=$(IMAGE):latest HERMES_DATA_DIR=$(REMOTE_DATA_DIR) HERMES_UID=$(REMOTE_UID) HERMES_GID=$(REMOTE_GID) docker compose pull && HERMES_IMAGE=$(IMAGE):latest HERMES_DATA_DIR=$(REMOTE_DATA_DIR) HERMES_UID=$(REMOTE_UID) HERMES_GID=$(REMOTE_GID) docker compose up -d'
 
-update: check-clean
+update:
 	@set -e; \
+	dirty=$$(git status --porcelain); \
 	before=$$(git rev-parse HEAD); \
 	git fetch origin $(REF); \
-	git rebase origin/$(REF); \
-	after=$$(git rev-parse HEAD); \
-	if [ "$$before" = "$$after" ]; then \
+	if [ -n "$$dirty" ]; then \
+		echo "Working tree has local changes; skipping git rebase and publishing the current workspace."; \
+		git status --short; \
+		behind=$$(git rev-list --count HEAD..origin/$(REF) 2>/dev/null || echo 0); \
+		if [ "$$behind" != "0" ]; then \
+			echo "Warning: origin/$(REF) is $$behind commit(s) ahead; clean or commit local changes to rebase first."; \
+		fi; \
+		after=$$before; \
+	else \
+		git rebase origin/$(REF); \
+		after=$$(git rev-parse HEAD); \
+	fi; \
+	if [ -z "$$dirty" ] && [ "$$before" = "$$after" ]; then \
 		case "$(FORCE)" in \
 			1|true|TRUE|yes|YES|on|ON) \
 				echo "No code updates on origin/$(REF), but FORCE=$(FORCE); publishing current source."; \
@@ -85,7 +96,11 @@ update: check-clean
 	fi; \
 	tag=$$(git rev-parse --short HEAD); \
 	commit=$$(git rev-parse HEAD); \
-	if [ "$$before" = "$$after" ]; then \
+	if [ -n "$$dirty" ]; then \
+		tag="$${tag}-dirty"; \
+		commit="$${commit}-dirty"; \
+		echo "Publishing dirty workspace as $(IMAGE):$$tag and :latest"; \
+	elif [ "$$before" = "$$after" ]; then \
 		echo "Publishing $(IMAGE):$$tag and :latest"; \
 	else \
 		echo "Updated $$before..$$after; publishing $(IMAGE):$$tag and :latest"; \
