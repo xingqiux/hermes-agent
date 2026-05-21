@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 interface CheckboxProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: React.ReactNode;
+  onCheckedChange?: (checked: boolean) => void;
 }
 
 export function Checkbox({
@@ -12,10 +13,10 @@ export function Checkbox({
   id,
   checked,
   defaultChecked,
+  onChange,
+  onCheckedChange,
   ...props
 }: CheckboxProps) {
-  // Support both controlled (checked prop) and uncontrolled (defaultChecked) usage.
-  // For visual rendering, prefer `checked` if provided; otherwise fall back to defaultChecked.
   const isChecked = checked ?? defaultChecked ?? false;
 
   return (
@@ -30,7 +31,6 @@ export function Checkbox({
         className={cn(
           "flex h-4 w-4 shrink-0 items-center justify-center transition-all",
           "border bg-background/40",
-          // Focus-visible ring for keyboard accessibility
           "group-has-[:focus-visible]:ring-2 group-has-[:focus-visible]:ring-ring group-has-[:focus-visible]:ring-offset-1",
           isChecked
             ? "border-foreground bg-foreground/20"
@@ -53,6 +53,10 @@ export function Checkbox({
         checked={checked}
         defaultChecked={checked === undefined ? defaultChecked : undefined}
         className="sr-only"
+        onChange={(event) => {
+          onChange?.(event);
+          onCheckedChange?.(event.currentTarget.checked);
+        }}
         {...props}
       />
       {label && <span className="text-sm">{label}</span>}
