@@ -1,5 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df22866bd7857e5d304b67a564f4feab6ac22044dde719b AS uv_source
 FROM tianon/gosu:1.19-trixie@sha256:3b176695959c71e123eb390d427efc665eeb561b1540e82679c15e992006b8b9 AS gosu_source
+FROM node:22-bookworm-slim@sha256:7af03b14a13c8cdd38e45058fd957bf00a72bbe17feac43b1c15a689c029c732 AS node_source
 FROM debian:13.4
 
 # Disable Python stdout buffering to ensure logs are printed immediately
@@ -14,7 +15,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/opt/hermes/.playwright
 # that would otherwise accumulate when hermes runs as PID 1. See #15012.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential curl nodejs npm python3 ripgrep ffmpeg gcc python3-dev libffi-dev procps git openssh-client docker-cli tini && \
+    build-essential ca-certificates curl python3 ripgrep ffmpeg gcc python3-dev libffi-dev procps git openssh-client docker-cli tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Non-root user for runtime; UID can be overridden via HERMES_UID at runtime
@@ -22,6 +23,11 @@ RUN useradd -u 10000 -m -d /opt/data hermes
 
 COPY --chmod=0755 --from=gosu_source /gosu /usr/local/bin/
 COPY --chmod=0755 --from=uv_source /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
+COPY --from=node_source /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_source /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
+    ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
 
 WORKDIR /opt/hermes
 
@@ -38,15 +44,11 @@ COPY web/package.json web/package-lock.json web/
 COPY ui-tui/package.json ui-tui/package-lock.json ui-tui/
 COPY ui-tui/packages/hermes-ink/ ui-tui/packages/hermes-ink/
 
-# `npm_config_install_links=false` forces npm to install `file:` deps as
-# symlinks (the npm 10+ default) even on Debian's older bundled npm 9.x,
-# which defaults to `install-links=true` and installs file deps as *copies*.
-# The host-side package-lock.json is generated with a newer npm that uses
-# symlinks, so an install-as-copy produces a hidden node_modules/.package-lock.json
-# that permanently disagrees with the root lock on the @hermes/ink entry.
-# That disagreement trips the TUI launcher's `_tui_need_npm_install()`
-# check on every startup and triggers a runtime `npm install` that then
-# fails with EACCES (node_modules/ is root-owned from build time).
+# Keep file: dependencies installed as symlinks so the hidden
+# node_modules/.package-lock.json agrees with the root lock on @hermes/ink.
+# A mismatch trips the TUI launcher's `_tui_need_npm_install()` check on
+# every startup and triggers a runtime `npm install` that then fails with
+# EACCES (node_modules/ is root-owned from build time).
 ENV npm_config_install_links=false
 
 RUN npm install --prefer-offline --no-audit && \
