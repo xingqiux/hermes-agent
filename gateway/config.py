@@ -56,6 +56,15 @@ def _coerce_int(value: Any, default: int) -> int:
         return default
 
 
+def _coerce_csv_list(value: Any) -> List[str]:
+    """Coerce comma-separated env/config values into a clean string list."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [item.strip() for item in str(value).split(",") if item.strip()]
+
+
 def _normalize_unauthorized_dm_behavior(value: Any, default: str = "pair") -> str:
     """Normalize unauthorized DM behavior to a supported value."""
     if isinstance(value, str):
@@ -127,6 +136,7 @@ class Platform(Enum):
     BLUEBUBBLES = "bluebubbles"
     QQBOT = "qqbot"
     YUANBAO = "yuanbao"
+    NAPCAT = "napcat"  # napcat-installed
     @classmethod
     def _missing_(cls, value):
         """Accept unknown platform names only for known plugin adapters.
@@ -436,6 +446,7 @@ _PLATFORM_CONNECTED_CHECKERS: dict[Platform, Callable[[PlatformConfig], bool]] =
     Platform.QQBOT: lambda cfg: bool(
         cfg.extra.get("app_id") and cfg.extra.get("client_secret")
     ),
+    Platform.NAPCAT: lambda cfg: bool(cfg.extra.get("http_api")),
     Platform.YUANBAO: lambda cfg: bool(
         cfg.extra.get("app_id") and cfg.extra.get("app_secret")
     ),
@@ -1811,6 +1822,52 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
                     or os.getenv("QQ_HOME_CHANNEL_THREAD_ID")
                     or None
                 ),
+            )
+
+    # QQ via NapCat / OneBot 11 reverse WebSocket
+    napcat_http_api = os.getenv("NAPCAT_HTTP_API", "").strip()
+    napcat_enabled = os.getenv("NAPCAT_ENABLED", "").lower() in {"true", "1", "yes"}
+    if napcat_http_api or napcat_enabled:
+        if Platform.NAPCAT not in config.platforms:
+            config.platforms[Platform.NAPCAT] = PlatformConfig()
+        config.platforms[Platform.NAPCAT].enabled = True
+        extra = config.platforms[Platform.NAPCAT].extra
+        if napcat_http_api:
+            extra["http_api"] = napcat_http_api.rstrip("/")
+        napcat_access_token = os.getenv("NAPCAT_ACCESS_TOKEN", "").strip()
+        if napcat_access_token:
+            extra["access_token"] = napcat_access_token
+        napcat_self_id = os.getenv("NAPCAT_SELF_ID", "").strip()
+        if napcat_self_id:
+            extra["self_id"] = napcat_self_id
+        napcat_ws_port = os.getenv("NAPCAT_WS_PORT", "").strip()
+        if napcat_ws_port:
+            extra["ws_port"] = _coerce_int(napcat_ws_port, 18800)
+        napcat_dm_policy = os.getenv("NAPCAT_DM_POLICY", "").strip().lower()
+        if napcat_dm_policy:
+            extra["dm_policy"] = napcat_dm_policy
+        napcat_group_policy = os.getenv("NAPCAT_GROUP_POLICY", "").strip().lower()
+        if napcat_group_policy:
+            extra["group_policy"] = napcat_group_policy
+        napcat_allowed_users = os.getenv("NAPCAT_ALLOWED_USERS", "").strip()
+        if napcat_allowed_users:
+            extra["allow_from"] = _coerce_csv_list(napcat_allowed_users)
+        napcat_group_allowed_users = os.getenv("NAPCAT_GROUP_ALLOWED_USERS", "").strip()
+        if napcat_group_allowed_users:
+            extra["group_allow_from"] = _coerce_csv_list(napcat_group_allowed_users)
+        napcat_admins = os.getenv("NAPCAT_ADMINS", "").strip()
+        if napcat_admins:
+            extra["admins"] = _coerce_csv_list(napcat_admins)
+        napcat_media_max_mb = os.getenv("NAPCAT_MEDIA_MAX_MB", "").strip()
+        if napcat_media_max_mb:
+            extra["media_max_mb"] = _coerce_int(napcat_media_max_mb, 5)
+        napcat_home = os.getenv("NAPCAT_HOME_CHANNEL", "").strip()
+        if napcat_home:
+            config.platforms[Platform.NAPCAT].home_channel = HomeChannel(
+                platform=Platform.NAPCAT,
+                chat_id=napcat_home,
+                name=os.getenv("NAPCAT_HOME_CHANNEL_NAME", "Home"),
+                thread_id=os.getenv("NAPCAT_HOME_CHANNEL_THREAD_ID") or None,
             )
 
     # Yuanbao — YUANBAO_APP_ID preferred
