@@ -32,6 +32,16 @@ _AUDIO_EXTS = frozenset({'.ogg', '.opus', '.mp3', '.wav', '.m4a', '.flac'})
 # delivered as a regular document.
 _TELEGRAM_AUDIO_ATTACHMENT_EXTS = frozenset({'.mp3', '.m4a'})
 _TELEGRAM_VOICE_EXTS = frozenset({'.ogg', '.opus'})
+_MEDIA_TAG_EXTENSION_PATTERN = (
+    r"png|jpe?g|gif|webp|bmp|tiff|svg|"
+    r"mp4|mov|avi|mkv|webm|"
+    r"ogg|opus|mp3|wav|m4a|flac|"
+    r"epub|pdf|docx?|odt|rtf|txt|md|log|"
+    r"xlsx?|ods|csv|tsv|json|xml|ya?ml|toml|ini|cfg|"
+    r"pptx?|odp|key|"
+    r"zip|tar|gz|tgz|bz2|xz|7z|rar|"
+    r"html?|py|sh|ts|js|css|apk|ipa"
+)
 
 
 def _platform_name(platform) -> str:
@@ -2159,7 +2169,10 @@ class BasePlatformAdapter(ABC):
         # Extract MEDIA:<path> tags, allowing optional whitespace after the colon
         # and quoted/backticked paths for LLM-formatted outputs.
         media_pattern = re.compile(
-            r'''[`"']?MEDIA:\s*(?P<path>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|(?:~/|/)\S+(?:[^\S\n]+\S+)*?\.(?:png|jpe?g|gif|webp|mp4|mov|avi|mkv|webm|ogg|opus|mp3|wav|m4a|flac|epub|pdf|zip|rar|7z|docx?|xlsx?|pptx?|txt|csv|apk|ipa)(?=[\s`"',;:)\]}]|$))[`"']?'''
+            r'''[`"']?MEDIA:\s*(?P<path>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|(?:~/|/)\S+(?:[^\S\n]+\S+)*?\.(?:'''
+            + _MEDIA_TAG_EXTENSION_PATTERN
+            + r''')(?=[\s`"',;:)\]}]|$))[`"']?''',
+            re.IGNORECASE,
         )
         for match in media_pattern.finditer(content):
             path = match.group("path").strip()
