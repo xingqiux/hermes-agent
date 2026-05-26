@@ -144,3 +144,12 @@
 .ha-share-btn-primary { border-color: #ffffff; color: #ffffff; background: #000000; }
 .ha-share-btn-primary:hover:not(:disabled) { background: #1a1a1a; border-color: #67e8f9; color: #67e8f9; }
 .ha-share-hint { margin: 0; color: var(--color-muted-foreground); font-size: .76rem; line-height: 1.45; }
+
+/* This dashboard plugin is mounted inside the Hermes app shell, whose upstream
+ * styling historically forced label text into all caps. Keep achievement names,
+ * categories, badges, buttons, and localized strings in their authored case. */
+.ha-page, .ha-page *, .ha-share-backdrop, .ha-share-backdrop * {
+  font-family: var(--theme-font-sans, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  text-transform: none !important;
+  letter-spacing: normal;
+}

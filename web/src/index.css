@@ -124,6 +124,13 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
   overflow: hidden;
 }
 
+/* The localized fork keeps English and Chinese content in the authored case.
+   Many upstream views used Tailwind's uppercase utility for visual labels,
+   which made whole pages read as all-caps in this dashboard shell. */
+#root .uppercase {
+  text-transform: none;
+}
+
 /* Nousnet's hermes-agent layout bumps `small` and `code` to readable
    dashboard sizes. Keep in sync. */
 small { font-size: 1.0625rem; }
@@ -233,4 +240,3 @@ code { font-size: 0.875rem; }
 :root[style*="--theme-asset-bg:"] .theme-default-filler {
   display: none;
 }
-
