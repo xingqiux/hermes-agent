@@ -354,6 +354,36 @@ class TestBackendSelection:
              patch.dict(os.environ, {"TAVILY_API_KEY": "tvly-test"}):
             assert _get_backend() == "tavily"
 
+    def test_fallback_tavily_dotenv_key(self):
+        """TAVILY_API_KEY in Hermes .env → 'tavily' even when not exported."""
+        from tools.web_tools import _get_backend
+
+        def fake_get_env_value(name):
+            return "tvly-dotenv" if name == "TAVILY_API_KEY" else ""
+
+        with patch("tools.web_tools._load_web_config", return_value={}), \
+             patch("tools.web_tools._is_tool_gateway_ready", return_value=False), \
+             patch("hermes_cli.config.get_env_value", side_effect=fake_get_env_value), \
+             patch.dict(os.environ, {}, clear=True):
+            assert _get_backend() == "tavily"
+
+    def test_web_search_loads_plugins_before_dispatch(self):
+        """web_search works even if only tools.web_tools has been imported."""
+        from agent.web_search_registry import _reset_for_tests
+        from tools.web_tools import web_search_tool
+
+        _reset_for_tests()
+
+        with patch("tools.web_tools._load_web_config", return_value={"search_backend": "tavily"}), \
+             patch("hermes_cli.config.get_env_value", lambda name: "tvly-dotenv" if name == "TAVILY_API_KEY" else ""), \
+             patch("tools.web_tools._ensure_web_plugins_loaded", side_effect=lambda: __import__("hermes_cli.plugins", fromlist=["_ensure_plugins_discovered"])._ensure_plugins_discovered(force=True)), \
+             patch("plugins.web.tavily.provider._tavily_request", return_value={"results": []}), \
+             patch("tools.interrupt.is_interrupted", return_value=False), \
+             patch.dict(os.environ, {}, clear=True):
+            result = json.loads(web_search_tool("test query", limit=1))
+
+        assert result["success"] is True
+
     def test_fallback_tavily_with_firecrawl_prefers_firecrawl(self):
         """Tavily + Firecrawl keys, no config → 'firecrawl' (backward compat)."""
         from tools.web_tools import _get_backend

@@ -618,6 +618,29 @@ def _is_local_mode() -> bool:
     return _get_cloud_provider() is None
 
 
+def _populate_browser_env_from_config(browser_env: dict) -> None:
+    """Fill browser subprocess env from Hermes .env without overriding exports."""
+    try:
+        from hermes_cli.config import get_env_value
+    except Exception:
+        return
+
+    for key in (
+        "AGENT_BROWSER_EXECUTABLE_PATH",
+        "PLAYWRIGHT_BROWSERS_PATH",
+        "AGENT_BROWSER_CONFIG",
+        "AGENT_BROWSER_ENGINE",
+    ):
+        if browser_env.get(key):
+            continue
+        try:
+            value = get_env_value(key)
+        except Exception:
+            value = None
+        if value:
+            browser_env[key] = str(value).strip()
+
+
 def _is_local_backend() -> bool:
     """Return True when the browser runs locally (no cloud provider).
 
@@ -860,6 +883,7 @@ def _run_chrome_fallback_command(
     task_socket_dir = os.path.join(_socket_safe_tmpdir(), f"agent-browser-{tmp_session}")
     os.makedirs(task_socket_dir, mode=0o700, exist_ok=True)
     browser_env = {**os.environ, "AGENT_BROWSER_SOCKET_DIR": task_socket_dir}
+    _populate_browser_env_from_config(browser_env)
     browser_env["PATH"] = _merge_browser_path(browser_env.get("PATH", ""))
 
     if "AGENT_BROWSER_IDLE_TIMEOUT_MS" not in browser_env:
@@ -1991,6 +2015,7 @@ def _run_browser_command(
                      command, task_id, task_socket_dir, len(task_socket_dir))
 
         browser_env = {**os.environ}
+        _populate_browser_env_from_config(browser_env)
 
         # Ensure subprocesses inherit the same browser-specific PATH fallbacks
         # used during CLI discovery.

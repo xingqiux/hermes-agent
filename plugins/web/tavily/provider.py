@@ -41,6 +41,19 @@ from agent.web_search_provider import WebSearchProvider
 logger = logging.getLogger(__name__)
 
 
+def _env_value(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value.strip()
+    try:
+        from hermes_cli.config import get_env_value
+
+        value = get_env_value(name)
+    except Exception:
+        value = None
+    return str(value or default).strip()
+
+
 def _tavily_request(endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     """POST to the Tavily API and return the parsed JSON response.
 
@@ -50,14 +63,14 @@ def _tavily_request(endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     import httpx
 
-    api_key = os.getenv("TAVILY_API_KEY")
+    api_key = _env_value("TAVILY_API_KEY")
     if not api_key:
         raise ValueError(
             "TAVILY_API_KEY environment variable not set. "
             "Get your API key at https://app.tavily.com/home"
         )
 
-    base_url = os.getenv("TAVILY_BASE_URL", "https://api.tavily.com")
+    base_url = _env_value("TAVILY_BASE_URL", "https://api.tavily.com")
     payload = dict(payload)  # don't mutate caller's dict
     payload["api_key"] = api_key
     url = f"{base_url}/{endpoint.lstrip('/')}"
@@ -151,7 +164,7 @@ class TavilyWebSearchProvider(WebSearchProvider):
 
     def is_available(self) -> bool:
         """Return True when ``TAVILY_API_KEY`` is set to a non-empty value."""
-        return bool(os.getenv("TAVILY_API_KEY", "").strip())
+        return bool(_env_value("TAVILY_API_KEY"))
 
     def supports_search(self) -> bool:
         return True
