@@ -253,24 +253,42 @@ class TestDefaults:
 
 
 # ---------------------------------------------------------------------------
-# GPT-Image quality is pinned to medium (not user-configurable)
+# GPT-Image quality selection
 # ---------------------------------------------------------------------------
 
-class TestGptQualityPinnedToMedium:
-    """GPT-Image quality is baked into the FAL_MODELS defaults at 'medium'
-    and cannot be overridden via config. Pinning keeps Nous Portal billing
-    predictable across all users."""
+class TestGptQualitySelection:
+    """GPT-Image defaults stay medium, but explicit per-call quality can
+    override the payload for GPT-backed image models."""
 
     def test_gpt_payload_always_has_medium_quality(self, image_tool):
         p = image_tool._build_fal_payload("fal-ai/gpt-image-1.5", "hi", "square")
         assert p["quality"] == "medium"
 
-    def test_config_quality_setting_is_ignored(self, image_tool):
-        """Even if a user manually edits config.yaml and adds quality_setting,
-        the payload must still use medium. No code path reads that field."""
-        with patch("hermes_cli.config.load_config",
-                   return_value={"image_gen": {"quality_setting": "high"}}):
-            p = image_tool._build_fal_payload("fal-ai/gpt-image-1.5", "hi", "square")
+    def test_explicit_gpt_quality_overrides_default(self, image_tool):
+        p = image_tool._build_fal_payload(
+            "fal-ai/gpt-image-1.5",
+            "hi",
+            "square",
+            overrides={"quality": "high"},
+        )
+        assert p["quality"] == "high"
+
+    def test_auto_quality_keeps_configured_default(self, image_tool):
+        p = image_tool._build_fal_payload(
+            "fal-ai/gpt-image-2",
+            "hi",
+            "square",
+            overrides={"quality": "auto"},
+        )
+        assert p["quality"] == "medium"
+
+    def test_invalid_quality_keeps_configured_default(self, image_tool):
+        p = image_tool._build_fal_payload(
+            "fal-ai/gpt-image-2",
+            "hi",
+            "square",
+            overrides={"quality": "ultra"},
+        )
         assert p["quality"] == "medium"
 
     def test_non_gpt_model_never_gets_quality(self, image_tool):
@@ -292,12 +310,10 @@ class TestGptQualityPinnedToMedium:
                 f"remove it — quality is pinned to medium"
             )
 
-    def test_resolve_gpt_quality_function_is_gone(self, image_tool):
-        """The _resolve_gpt_quality() helper was removed — quality is now
-        a static default, not a runtime lookup."""
-        assert not hasattr(image_tool, "_resolve_gpt_quality"), (
-            "_resolve_gpt_quality should not exist — quality is pinned"
-        )
+    def test_normalize_image_quality(self, image_tool):
+        assert image_tool._normalize_image_quality(" HIGH ") == "high"
+        assert image_tool._normalize_image_quality("auto") is None
+        assert image_tool._normalize_image_quality("ultra") is None
 
 
 # ---------------------------------------------------------------------------
@@ -363,15 +379,19 @@ class TestAspectRatioNormalization:
 
 class TestRegistryIntegration:
 
-    def test_schema_exposes_only_prompt_and_aspect_ratio_to_agent(self, image_tool):
-        """The agent-facing schema must stay tight — model selection is a
-        user-level config choice, not an agent-level arg."""
+    def test_schema_exposes_prompt_aspect_ratio_and_quality_to_agent(self, image_tool):
+        """Model selection remains user-level config; quality is safe as a
+        per-request generation knob for GPT image backends."""
         props = image_tool.IMAGE_GENERATE_SCHEMA["parameters"]["properties"]
-        assert set(props.keys()) == {"prompt", "aspect_ratio"}
+        assert set(props.keys()) == {"prompt", "aspect_ratio", "quality"}
 
     def test_aspect_ratio_enum_is_three_values(self, image_tool):
         enum = image_tool.IMAGE_GENERATE_SCHEMA["parameters"]["properties"]["aspect_ratio"]["enum"]
         assert set(enum) == {"landscape", "square", "portrait"}
+
+    def test_quality_enum_exposes_auto_and_three_tiers(self, image_tool):
+        enum = image_tool.IMAGE_GENERATE_SCHEMA["parameters"]["properties"]["quality"]["enum"]
+        assert enum == ["auto", "low", "medium", "high"]
 
 
 # ---------------------------------------------------------------------------

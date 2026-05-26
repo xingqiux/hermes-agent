@@ -183,6 +183,31 @@ class TestGenerate:
         # Always the same underlying API model regardless of tier.
         assert fake_client.images.generate.call_args.kwargs["model"] == "gpt-image-2"
 
+    def test_explicit_quality_overrides_configured_tier(self, provider, monkeypatch):
+        monkeypatch.setenv("OPENAI_IMAGE_MODEL", "gpt-image-2-medium")
+        fake_client = MagicMock()
+        fake_client.images.generate.return_value = _fake_response(b64=_b64_png())
+
+        with _patched_openai(fake_client):
+            result = provider.generate("a cat", quality="high")
+
+        assert result["model"] == "gpt-image-2-high"
+        assert result["quality"] == "high"
+        assert fake_client.images.generate.call_args.kwargs["quality"] == "high"
+
+    @pytest.mark.parametrize("quality", ["auto", "ultra", "", None])
+    def test_auto_or_invalid_quality_keeps_configured_tier(self, provider, monkeypatch, quality):
+        monkeypatch.setenv("OPENAI_IMAGE_MODEL", "gpt-image-2-low")
+        fake_client = MagicMock()
+        fake_client.images.generate.return_value = _fake_response(b64=_b64_png())
+
+        with _patched_openai(fake_client):
+            result = provider.generate("a cat", quality=quality)
+
+        assert result["model"] == "gpt-image-2-low"
+        assert result["quality"] == "low"
+        assert fake_client.images.generate.call_args.kwargs["quality"] == "low"
+
     @pytest.mark.parametrize("aspect,expected_size", [
         ("landscape", "1536x1024"),
         ("square", "1024x1024"),

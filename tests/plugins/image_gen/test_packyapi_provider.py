@@ -170,6 +170,31 @@ class TestGenerate:
         assert mock_post.call_args.kwargs["json"]["quality"] == expected_quality
         assert mock_post.call_args.kwargs["json"]["model"] == "gpt-image-2"
 
+    def test_explicit_quality_overrides_configured_tier(self, provider, monkeypatch):
+        monkeypatch.setenv("PACKYAPI_IMAGE_MODEL", "gpt-image-2-medium")
+        mock_post = MagicMock(return_value=_response({"data": [{"url": "https://img.test/a.png"}]}))
+        monkeypatch.setattr(packyapi_plugin.requests, "post", mock_post)
+
+        result = provider.generate("a cat", quality="high")
+
+        assert result["success"] is True
+        assert result["model"] == "gpt-image-2-high"
+        assert result["quality"] == "high"
+        assert mock_post.call_args.kwargs["json"]["quality"] == "high"
+
+    @pytest.mark.parametrize("quality", ["auto", "ultra", "", None])
+    def test_auto_or_invalid_quality_keeps_configured_tier(self, provider, monkeypatch, quality):
+        monkeypatch.setenv("PACKYAPI_IMAGE_MODEL", "gpt-image-2-low")
+        mock_post = MagicMock(return_value=_response({"data": [{"url": "https://img.test/a.png"}]}))
+        monkeypatch.setattr(packyapi_plugin.requests, "post", mock_post)
+
+        result = provider.generate("a cat", quality=quality)
+
+        assert result["success"] is True
+        assert result["model"] == "gpt-image-2-low"
+        assert result["quality"] == "low"
+        assert mock_post.call_args.kwargs["json"]["quality"] == "low"
+
     @pytest.mark.parametrize(
         ("aspect", "expected_size"),
         [

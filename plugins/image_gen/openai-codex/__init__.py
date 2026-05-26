@@ -62,6 +62,7 @@ _MODELS: Dict[str, Dict[str, Any]] = {
 }
 
 DEFAULT_MODEL = "gpt-image-2-medium"
+VALID_QUALITIES = {"low", "medium", "high"}
 
 _SIZES = {
     "landscape": "1536x1024",
@@ -122,6 +123,25 @@ def _resolve_model() -> Tuple[str, Dict[str, Any]]:
         return candidate, _MODELS[candidate]
 
     return DEFAULT_MODEL, _MODELS[DEFAULT_MODEL]
+
+
+def _normalize_quality(value: Any) -> Optional[str]:
+    """Return a concrete quality tier, or None for auto/invalid."""
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    if normalized in VALID_QUALITIES:
+        return normalized
+    return None
+
+
+def _resolve_model_for_quality(value: Any = None) -> Tuple[str, Dict[str, Any]]:
+    """Use an explicit per-call quality when present, else configured tier."""
+    quality = _normalize_quality(value)
+    if quality is not None:
+        tier_id = f"gpt-image-2-{quality}"
+        return tier_id, _MODELS[tier_id]
+    return _resolve_model()
 
 
 def _read_codex_access_token() -> Optional[str]:
@@ -304,7 +324,7 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
                 aspect_ratio=aspect,
             )
 
-        tier_id, meta = _resolve_model()
+        tier_id, meta = _resolve_model_for_quality(kwargs.get("quality"))
         size = _SIZES.get(aspect, _SIZES["square"])
 
         client = _build_codex_client()

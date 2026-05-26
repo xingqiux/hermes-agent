@@ -199,6 +199,34 @@ class TestGenerate:
         assert tool["background"] == "opaque"
         assert tool["partial_images"] == 1
 
+    def test_explicit_quality_overrides_configured_tier(self, provider, monkeypatch):
+        monkeypatch.setattr(codex_plugin, "_read_codex_access_token", lambda: "codex-token")
+        monkeypatch.setenv("OPENAI_IMAGE_MODEL", "gpt-image-2-medium")
+
+        captured = {}
+
+        def _stream(**kwargs):
+            captured.update(kwargs)
+            output_item = SimpleNamespace(
+                type="image_generation_call",
+                status="generating",
+                id="ig_test",
+                result=_b64_png(),
+            )
+            done_event = SimpleNamespace(type="response.output_item.done", item=output_item)
+            final_response = SimpleNamespace(output=[], status="completed", output_text="")
+            return _FakeStream([done_event], final_response)
+
+        fake_client = SimpleNamespace(responses=SimpleNamespace(stream=_stream))
+        monkeypatch.setattr(codex_plugin, "_build_codex_client", lambda: fake_client)
+
+        result = provider.generate("a cat", quality="high")
+
+        assert result["success"] is True
+        assert result["model"] == "gpt-image-2-high"
+        assert result["quality"] == "high"
+        assert captured["tools"][0]["quality"] == "high"
+
     def test_partial_image_event_used_when_done_missing(self, provider, monkeypatch):
         """If the stream never emits output_item.done, fall back to the
         partial_image event so users at least get the latest preview frame."""
