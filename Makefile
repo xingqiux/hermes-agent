@@ -8,6 +8,7 @@ REMOTE_DIR ?= /home/ziyu/services/hermes-agent
 REMOTE_DATA_DIR ?= /home/ziyu/services/hermes-agent-data
 REMOTE_UID ?= 1001
 REMOTE_GID ?= 1001
+NPM_CONFIG_REGISTRY ?= https://registry.npmmirror.com/
 force ?= 0
 FORCE ?= $(force)
 
@@ -50,6 +51,7 @@ build:
 		--build-arg HERMES_BUILD_COMMIT=$(COMMIT) \
 		--build-arg HERMES_BUILD_REF=$(REF) \
 		--build-arg HERMES_BUILD_REMOTE=https://github.com/xingqiux/hermes-agent.git \
+		--build-arg NPM_CONFIG_REGISTRY=$(NPM_CONFIG_REGISTRY) \
 		-t $(IMAGE):$(TAG) \
 		-t $(IMAGE):latest \
 		--load \
