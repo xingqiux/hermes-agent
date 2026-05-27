@@ -481,6 +481,71 @@ def test_run_codex_stream_fallback_parses_create_stream_events(monkeypatch):
     assert response.output[0].content[0].text == "streamed create ok"
 
 
+def test_run_codex_stream_backfills_when_final_output_is_none(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    calls = {"stream": 0}
+
+    class _FakeStreamWithEvents(_FakeResponsesStream):
+        def __iter__(self):
+            return iter(
+                [
+                    SimpleNamespace(type="response.output_text.delta", delta="hello"),
+                    SimpleNamespace(type="response.output_text.delta", delta=" from sub2api"),
+                    SimpleNamespace(type="response.completed"),
+                ]
+            )
+
+    def _fake_stream(**kwargs):
+        calls["stream"] += 1
+        return _FakeStreamWithEvents(
+            final_response=SimpleNamespace(
+                output=None,
+                usage=SimpleNamespace(input_tokens=5, output_tokens=4, total_tokens=9),
+                status="completed",
+                model="gpt-5.5",
+            )
+        )
+
+    agent.client = SimpleNamespace(
+        responses=SimpleNamespace(
+            stream=_fake_stream,
+            create=lambda **kwargs: _codex_message_response("fallback"),
+        )
+    )
+
+    response = agent._run_codex_stream(_codex_request_kwargs())
+    assert calls["stream"] == 1
+    assert response.output[0].content[0].text == "hello from sub2api"
+
+
+def test_run_codex_create_stream_fallback_backfills_when_terminal_output_is_none(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    terminal_response = SimpleNamespace(
+        output=None,
+        usage=SimpleNamespace(input_tokens=5, output_tokens=4, total_tokens=9),
+        status="completed",
+        model="gpt-5.5",
+    )
+    create_stream = _FakeCreateStream(
+        [
+            SimpleNamespace(type="response.created"),
+            SimpleNamespace(type="response.output_text.delta", delta="fallback"),
+            SimpleNamespace(type="response.output_text.delta", delta=" recovered"),
+            SimpleNamespace(type="response.completed", response=terminal_response),
+        ]
+    )
+
+    agent.client = SimpleNamespace(
+        responses=SimpleNamespace(
+            create=lambda **kwargs: create_stream,
+        )
+    )
+
+    response = agent._run_codex_create_stream_fallback(_codex_request_kwargs())
+    assert create_stream.closed is True
+    assert response.output[0].content[0].text == "fallback recovered"
+
+
 def test_run_conversation_codex_plain_text(monkeypatch):
     agent = _build_agent(monkeypatch)
     monkeypatch.setattr(agent, "_interruptible_api_call", lambda api_kwargs: _codex_message_response("OK"))
