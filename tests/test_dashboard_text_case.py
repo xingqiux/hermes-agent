@@ -10,6 +10,12 @@ def test_dashboard_shell_does_not_force_uppercase_text():
     assert "bg-black uppercase text-midground" not in app
 
 
+def test_dashboard_shell_does_not_inherit_display_font():
+    app = (ROOT / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+
+    assert 'className="font-mondwest flex h-dvh' not in app
+
+
 def test_dashboard_uppercase_utility_is_neutralized_for_localized_fork():
     css = (ROOT / "web" / "src" / "index.css").read_text(encoding="utf-8")
 
