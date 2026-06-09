@@ -10,9 +10,13 @@ INSTALL_DIR="/opt/hermes"
 # optionally remap the hermes user/group to match host-side ownership, fix volume
 # permissions, then re-exec as hermes.
 if [ "$(id -u)" = "0" ]; then
+    uid_remapped=false
+    gid_remapped=false
+
     if [ -n "$HERMES_UID" ] && [ "$HERMES_UID" != "$(id -u hermes)" ]; then
         echo "Changing hermes UID to $HERMES_UID"
         usermod -u "$HERMES_UID" hermes
+        uid_remapped=true
     fi
 
     if [ -n "$HERMES_GID" ] && [ "$HERMES_GID" != "$(id -g hermes)" ]; then
@@ -20,14 +24,16 @@ if [ "$(id -u)" = "0" ]; then
         # -o allows non-unique GID (e.g. macOS GID 20 "staff" may already exist
         # as "dialout" in the Debian-based container image)
         groupmod -o -g "$HERMES_GID" hermes 2>/dev/null || true
+        gid_remapped=true
     fi
 
     # Fix ownership of the data volume. When HERMES_UID remaps the hermes user,
     # files created by previous runs (under the old UID) become inaccessible.
-    # Always chown -R when UID was remapped; otherwise only if top-level is wrong.
+    # Expensive recursive chowns are only needed when the runtime UID/GID truly
+    # changed or when the mounted volume top-level owner is wrong.
     actual_hermes_uid=$(id -u hermes)
     needs_chown=false
-    if [ -n "$HERMES_UID" ] && [ "$HERMES_UID" != "10000" ]; then
+    if [ "$uid_remapped" = true ] || [ "$gid_remapped" = true ]; then
         needs_chown=true
     elif [ "$(stat -c %u "$HERMES_HOME" 2>/dev/null)" != "$actual_hermes_uid" ]; then
         needs_chown=true

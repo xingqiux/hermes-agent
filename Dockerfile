@@ -1,5 +1,4 @@
 FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df22866bd7857e5d304b67a564f4feab6ac22044dde719b AS uv_source
-FROM tianon/gosu:1.19-trixie@sha256:3b176695959c71e123eb390d427efc665eeb561b1540e82679c15e992006b8b9 AS gosu_source
 FROM node:22-bookworm-slim@sha256:7af03b14a13c8cdd38e45058fd957bf00a72bbe17feac43b1c15a689c029c732 AS node_source
 FROM debian:13.4
 
@@ -9,19 +8,22 @@ ENV PYTHONUNBUFFERED=1
 # Store Playwright browsers outside the volume mount so the build-time
 # install survives the /opt/data volume overlay at runtime.
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/hermes/.playwright
+ARG INSTALL_PLAYWRIGHT_BROWSER=true
 
 # Install system dependencies in one layer, clear APT cache
 # tini reaps orphaned zombie processes (MCP stdio subprocesses, git, bun, etc.)
 # that would otherwise accumulate when hermes runs as PID 1. See #15012.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential ca-certificates curl python3 ripgrep ffmpeg gcc python3-dev libffi-dev procps git openssh-client docker-cli tini && \
+    build-essential ca-certificates curl python3 ripgrep ffmpeg gcc python3-dev libffi-dev procps git openssh-client docker-cli tini gosu && \
     rm -rf /var/lib/apt/lists/*
 
 # Non-root user for runtime; UID can be overridden via HERMES_UID at runtime
-RUN useradd -u 10000 -m -d /opt/data hermes
+ARG HERMES_RUNTIME_UID=10000
+ARG HERMES_RUNTIME_GID=10000
+RUN groupadd -o -g "$HERMES_RUNTIME_GID" hermes && \
+    useradd -o -u "$HERMES_RUNTIME_UID" -g hermes -m -d /opt/data hermes
 
-COPY --chmod=0755 --from=gosu_source /gosu /usr/local/bin/
 COPY --chmod=0755 --from=uv_source /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 COPY --from=node_source /usr/local/bin/node /usr/local/bin/node
 COPY --from=node_source /usr/local/lib/node_modules /usr/local/lib/node_modules
@@ -59,7 +61,7 @@ ENV npm_config_registry=${NPM_CONFIG_REGISTRY} \
     npm_config_fetch_timeout=300000
 
 RUN npm install --prefer-offline --no-audit && \
-    npx playwright install --with-deps chromium --only-shell && \
+    if [ "$INSTALL_PLAYWRIGHT_BROWSER" = "true" ]; then npx playwright install --with-deps chromium --only-shell; else echo "Skipping Playwright browser download"; fi && \
     (cd web && npm install --prefer-offline --no-audit) && \
     (cd ui-tui && npm install --prefer-offline --no-audit) && \
     npm cache clean --force
@@ -120,28 +122,20 @@ EOF
 RUN cd web && npm run build && \
     cd ../ui-tui && npm run build
 
+# ---------- Link hermes-agent itself (editable) ----------
+# Deps are already installed in the cached layer above; `--no-deps` makes
+# this a fast (~1s) egg-link creation with no resolution or downloads.
+RUN uv pip install --no-cache-dir --no-deps -e "."
+
 # ---------- Permissions ----------
-# Make install dir world-readable so any HERMES_UID can read it at runtime.
-# The venv needs to be traversable too.
-# node_modules trees additionally need to be writable by the hermes user
-# so the runtime `npm install` triggered by _tui_need_npm_install() in
-# hermes_cli/main.py succeeds (see #18800). /opt/hermes/web is build-time
-# only (HERMES_WEB_DIST points at hermes_cli/web_dist) and is intentionally
-# not chowned here.
 # The .venv MUST remain hermes-writable so lazy_deps.py can install
 # remaining optional platform packages and future pin bumps at first use.
 # Without this, `uv pip install` fails with EACCES and adapters silently
 # fail to load.  See tools/lazy_deps.py.
 USER root
-RUN chmod -R a+rX /opt/hermes && \
-    chown -R hermes:hermes /opt/hermes/.venv /opt/hermes/ui-tui /opt/hermes/node_modules
+RUN chown -R hermes:hermes /opt/hermes/.venv
 # Start as root so the entrypoint can usermod/groupmod + gosu.
 # If HERMES_UID is unset, the entrypoint drops to the default hermes user (10000).
-
-# ---------- Link hermes-agent itself (editable) ----------
-# Deps are already installed in the cached layer above; `--no-deps` makes
-# this a fast (~1s) egg-link creation with no resolution or downloads.
-RUN uv pip install --no-cache-dir --no-deps -e "."
 
 # ---------- Runtime ----------
 ENV HERMES_WEB_DIST=/opt/hermes/hermes_cli/web_dist
