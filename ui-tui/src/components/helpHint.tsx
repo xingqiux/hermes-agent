@@ -4,12 +4,12 @@ import { HOTKEYS } from '../content/hotkeys.js'
 import type { Theme } from '../theme.js'
 
 const COMMON_COMMANDS: [string, string][] = [
-  ['/help', '完整命令和快捷键'],
-  ['/clear', '开始新会话'],
-  ['/resume', '继续之前的会话'],
-  ['/details', '调整记录详情级别'],
-  ['/copy', '复制选区或上一条助手消息'],
-  ['/quit', '退出 hermes']
+  ['/help', 'full list of commands + hotkeys'],
+  ['/clear', 'start a new session'],
+  ['/resume', 'switch live or resume past sessions'],
+  ['/details', 'control transcript detail level'],
+  ['/copy', 'copy selection or last assistant message'],
+  ['/quit', 'exit hermes']
 ]
 
 const HOTKEY_PREVIEW = HOTKEYS.slice(0, 8)
@@ -35,16 +35,16 @@ export function HelpHint({ t }: { t: Theme }) {
       >
         <Text>
           <Text bold color={t.color.primary}>
-            ? 快速帮助
+            ? quick help
           </Text>
           <Text color={t.color.muted}>
-            {'  ·  输入 /help 查看完整面板  ·  Backspace 关闭'}
+            {'  ·  type /help for the full panel  ·  backspace to dismiss'}
           </Text>
         </Text>
 
         <Box marginTop={1}>
           <Text bold color={t.color.accent}>
-            常用命令
+            Common commands
           </Text>
         </Box>
 
@@ -57,7 +57,7 @@ export function HelpHint({ t }: { t: Theme }) {
 
         <Box marginTop={1}>
           <Text bold color={t.color.accent}>
-            快捷键
+            Hotkeys
           </Text>
         </Box>
 
