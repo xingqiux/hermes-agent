@@ -6931,6 +6931,13 @@ class GatewayRunner:
                 return None
             return WeixinAdapter(config)
 
+        elif platform == Platform.NAPCAT:
+            from gateway.platforms.napcat import NapCatAdapter, check_napcat_requirements
+            if not check_napcat_requirements():
+                logger.warning("NapCat: aiohttp not installed")
+                return None
+            return NapCatAdapter(config)
+
         elif platform == Platform.MATRIX:
             from gateway.platforms.matrix import MatrixAdapter, check_matrix_requirements
             if not check_matrix_requirements():
