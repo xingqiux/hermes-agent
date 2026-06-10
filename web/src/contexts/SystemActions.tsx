@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { ActionStatusResponse } from "@/lib/api";
+import type { ActionStatusResponse, UpdateCheckResponse } from "@/lib/api";
 import { Toast } from "@nous-research/ui/ui/components/toast";
 import { useI18n } from "@/i18n";
 import {
@@ -10,7 +10,6 @@ import {
 
 const ACTION_NAMES: Record<SystemAction, string> = {
   restart: "gateway-restart",
-  update: "hermes-update",
 };
 
 export function SystemActionsProvider({
@@ -23,6 +22,10 @@ export function SystemActionsProvider({
   const [actionStatus, setActionStatus] = useState<ActionStatusResponse | null>(
     null,
   );
+  const [updateCheck, setUpdateCheck] = useState<UpdateCheckResponse | null>(
+    null,
+  );
+  const [updateCheckLoading, setUpdateCheckLoading] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { t } = useI18n();
 
@@ -69,30 +72,8 @@ export function SystemActionsProvider({
       setPendingAction(action);
       setActionStatus(null);
       try {
-        if (action === "restart") {
-          await api.restartGateway();
-          setActiveAction(action);
-        } else {
-          const resp = await api.updateHermes();
-          // In a Docker install the image is immutable, so `hermes update`
-          // can't apply — the endpoint returns 200 with a structured
-          // {ok:false, error:"docker_update_unsupported", message, update_command}
-          // envelope instead of spawning the action (see #34347 / #36263).
-          // Surface that guidance to the user rather than starting the poll,
-          // which would otherwise report a generic "failed (exit 1)".
-          if (!resp.ok && resp.error === "docker_update_unsupported") {
-            const cmd = resp.update_command ? `  ${resp.update_command}` : "";
-            setToast({
-              type: "success",
-              message:
-                (resp.message ??
-                  "Updates don't apply inside Docker — re-pull the image instead.") +
-                cmd,
-            });
-            return;
-          }
-          setActiveAction(action);
-        }
+        await api.restartGateway();
+        setActiveAction(action);
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         setToast({
@@ -105,6 +86,37 @@ export function SystemActionsProvider({
     },
     [t.status.actionFailed],
   );
+
+  const checkUpdate = useCallback(async () => {
+    setUpdateCheckLoading(true);
+    try {
+      const resp = await api.checkHermesUpdate();
+      setUpdateCheck(resp);
+      const message =
+        (resp.behind ?? 0) > 0
+          ? t.status.updateAvailable.replace(
+              "{count}",
+              String(resp.behind),
+            )
+          : t.status.noUpdateAvailable;
+      setToast({
+        type: "success",
+        message,
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setToast({
+        type: "error",
+        message: `${t.status.updateCheckFailed}: ${detail}`,
+      });
+    } finally {
+      setUpdateCheckLoading(false);
+    }
+  }, [
+    t.status.noUpdateAvailable,
+    t.status.updateAvailable,
+    t.status.updateCheckFailed,
+  ]);
 
   const dismissLog = useCallback(() => {
     setActiveAction(null);
@@ -119,11 +131,14 @@ export function SystemActionsProvider({
       value={{
         actionStatus,
         activeAction,
+        checkUpdate,
         dismissLog,
         isBusy,
         isRunning,
         pendingAction,
         runAction,
+        updateCheck,
+        updateCheckLoading,
       }}
     >
       {children}

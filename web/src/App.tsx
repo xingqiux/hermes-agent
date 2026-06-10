@@ -24,7 +24,6 @@ import {
   Code,
   Cpu,
   Database,
-  Download,
   Eye,
   FileText,
   Globe,
@@ -38,6 +37,7 @@ import {
   Plug,
   Puzzle,
   Radio,
+  RefreshCw,
   RotateCw,
   Settings,
   Shield,
@@ -859,8 +859,16 @@ function SidebarSystemActions({
 }: SidebarSystemActionsProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { activeAction, isBusy, isRunning, pendingAction, runAction } =
-    useSystemActions();
+  const {
+    activeAction,
+    checkUpdate,
+    isBusy,
+    isRunning,
+    pendingAction,
+    runAction,
+    updateCheck,
+    updateCheckLoading,
+  } = useSystemActions();
 
   const items: SystemActionItem[] = [
     {
@@ -870,20 +878,28 @@ function SidebarSystemActions({
       runningLabel: t.status.restartingGateway,
       spin: true,
     },
-    {
-      action: "update",
-      icon: Download,
-      label: t.status.updateHermes,
-      runningLabel: t.status.updatingHermes,
-      spin: false,
-    },
   ];
+
+  const updateStatus = updateCheck
+    ? (updateCheck.behind ?? 0) > 0
+      ? t.status.updateAvailable.replace(
+          "{count}",
+          String(updateCheck.behind),
+        )
+      : t.status.noUpdateAvailable
+    : null;
+  const hasUpdateAvailable = (updateCheck?.behind ?? 0) > 0;
 
   const handleClick = (action: SystemAction) => {
     if (isBusy) return;
     void runAction(action);
     navigate("/sessions");
     onNavigate();
+  };
+
+  const handleCheckUpdates = () => {
+    if (isBusy || updateCheckLoading) return;
+    void checkUpdate();
   };
 
   return (
@@ -911,6 +927,61 @@ function SidebarSystemActions({
       <GatewayDot collapsed={collapsed} status={status} tooltipWarmRef={tooltipWarmRef} />
 
       <ul className="flex flex-col">
+        <li>
+          <button
+            onClick={handleCheckUpdates}
+            disabled={isBusy || updateCheckLoading}
+            aria-busy={updateCheckLoading}
+            aria-label={collapsed ? t.status.checkUpdates : undefined}
+            title={t.status.localizedUpdateHint}
+            type="button"
+            className={cn(
+              "group/action relative flex w-full items-center gap-3",
+              "px-5 py-2.5",
+              "font-mondwest text-display text-xs tracking-[0.1em]",
+              "whitespace-nowrap transition-colors cursor-pointer",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
+              updateCheckLoading
+                ? "text-midground"
+                : "text-text-secondary hover:text-midground",
+              "disabled:text-text-disabled disabled:cursor-not-allowed",
+            )}
+          >
+            {updateCheckLoading ? (
+              <Spinner className="shrink-0 text-[0.875rem]" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+            )}
+
+            <span
+              className={cn(
+                "truncate transition-opacity duration-300",
+                collapsed ? "lg:opacity-0" : "lg:opacity-100",
+              )}
+            >
+              {updateCheckLoading
+                ? t.status.checkingUpdates
+                : t.status.checkUpdates}
+            </span>
+          </button>
+        </li>
+
+        {updateStatus && (
+          <li className={cn(collapsed && "lg:hidden")}>
+            <div
+              className={cn(
+                "px-5 pb-1.5 pt-0",
+                "normal-case text-[0.64rem] leading-snug tracking-normal",
+                hasUpdateAvailable
+                  ? "text-midground/80"
+                  : "text-text-tertiary",
+              )}
+            >
+              {updateStatus}
+            </div>
+          </li>
+        )}
+
         {items.map((item) => (
           <SystemActionButton
             key={item.action}
