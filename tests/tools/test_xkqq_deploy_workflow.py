@@ -40,6 +40,11 @@ def test_private_build_can_bake_runtime_uid_gid(dockerfile_text: str, makefile_t
     assert "--build-arg HERMES_RUNTIME_GID=$(REMOTE_GID)" in makefile_text
 
 
+def test_private_build_records_git_sha(dockerfile_text: str, makefile_text: str) -> None:
+    assert "ARG HERMES_GIT_SHA=" in dockerfile_text
+    assert "--build-arg HERMES_GIT_SHA=$(COMMIT)" in makefile_text
+
+
 def test_dashboard_container_skips_profile_reconcile(
     compose_text: str,
     reconcile_script_text: str,

@@ -48,9 +48,7 @@ pull: check-clean
 build:
 	docker buildx build \
 		--platform $(PLATFORM) \
-		--build-arg HERMES_BUILD_COMMIT=$(COMMIT) \
-		--build-arg HERMES_BUILD_REF=$(REF) \
-		--build-arg HERMES_BUILD_REMOTE=https://github.com/xingqiux/hermes-agent.git \
+		--build-arg HERMES_GIT_SHA=$(COMMIT) \
 		--build-arg HERMES_RUNTIME_UID=$(REMOTE_UID) \
 		--build-arg HERMES_RUNTIME_GID=$(REMOTE_GID) \
 		--build-arg NPM_CONFIG_REGISTRY=$(NPM_CONFIG_REGISTRY) \
