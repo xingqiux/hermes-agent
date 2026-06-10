@@ -85,8 +85,13 @@ RUN set -eu; \
     # ENTRYPOINT. Safe to drop once the affected catalogs are updated.\
     ln -sf /init /usr/bin/tini
 
-# Non-root user for runtime; UID can be overridden via HERMES_UID at runtime
-RUN useradd -u 10000 -m -d /opt/data hermes
+# Non-root user for runtime. Upstream-compatible builds default to 10000:10000;
+# private deployments may bake the host UID/GID to avoid a first-boot remap and
+# expensive recursive chown of build trees.
+ARG HERMES_RUNTIME_UID=10000
+ARG HERMES_RUNTIME_GID=10000
+RUN groupadd -g "${HERMES_RUNTIME_GID}" hermes && \
+    useradd -u "${HERMES_RUNTIME_UID}" -g "${HERMES_RUNTIME_GID}" -m -d /opt/data hermes
 
 COPY --chmod=0755 --from=uv_source /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 

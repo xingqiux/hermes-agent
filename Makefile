@@ -23,8 +23,8 @@ help:
 	@echo "  make status   - show git and image settings"
 	@echo "  make pull     - fetch/rebase $(REF) from origin"
 	@echo "  make build    - build $(IMAGE):$(TAG) and :latest for $(PLATFORM)"
-	@echo "  make push     - push $(IMAGE):$(TAG) and :latest"
-	@echo "  make publish  - build and push"
+	@echo "  make push     - push $(IMAGE):latest"
+	@echo "  make publish  - build local tags and push latest"
 	@echo "  make deploy   - copy compose to $(REMOTE), pull image, docker compose up -d"
 	@echo "  make update   - pull remote changes, publish and deploy only when code changed"
 	@echo "  make update FORCE=1 - rebuild, push, and deploy even when source is current"
@@ -51,6 +51,8 @@ build:
 		--build-arg HERMES_BUILD_COMMIT=$(COMMIT) \
 		--build-arg HERMES_BUILD_REF=$(REF) \
 		--build-arg HERMES_BUILD_REMOTE=https://github.com/xingqiux/hermes-agent.git \
+		--build-arg HERMES_RUNTIME_UID=$(REMOTE_UID) \
+		--build-arg HERMES_RUNTIME_GID=$(REMOTE_GID) \
 		--build-arg NPM_CONFIG_REGISTRY=$(NPM_CONFIG_REGISTRY) \
 		-t $(IMAGE):$(TAG) \
 		-t $(IMAGE):latest \
@@ -58,7 +60,6 @@ build:
 		.
 
 push:
-	docker push $(IMAGE):$(TAG)
 	docker push $(IMAGE):latest
 
 publish: build push
@@ -88,7 +89,7 @@ update:
 	if [ -z "$$dirty" ] && [ "$$before" = "$$after" ]; then \
 		case "$(FORCE)" in \
 			1|true|TRUE|yes|YES|on|ON) \
-				echo "No code updates on origin/$(REF), but FORCE=$(FORCE); publishing current source."; \
+				echo "No code updates on origin/$(REF), but FORCE=$(FORCE); building current source and pushing latest."; \
 				;; \
 			*) \
 				echo "No code updates on origin/$(REF); skipping build, push, and deploy."; \
@@ -101,11 +102,11 @@ update:
 	if [ -n "$$dirty" ]; then \
 		tag="$${tag}-dirty"; \
 		commit="$${commit}-dirty"; \
-		echo "Publishing dirty workspace as $(IMAGE):$$tag and :latest"; \
+		echo "Building dirty workspace as $(IMAGE):$$tag locally and pushing :latest"; \
 	elif [ "$$before" = "$$after" ]; then \
-		echo "Publishing $(IMAGE):$$tag and :latest"; \
+		echo "Building $(IMAGE):$$tag locally and pushing :latest"; \
 	else \
-		echo "Updated $$before..$$after; publishing $(IMAGE):$$tag and :latest"; \
+		echo "Updated $$before..$$after; building $(IMAGE):$$tag locally and pushing :latest"; \
 	fi; \
 	$(MAKE) publish COMMIT=$$commit TAG=$$tag; \
 	$(MAKE) deploy TAG=$$tag

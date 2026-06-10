@@ -24,6 +24,13 @@
 # and swallows the failure).
 set -e
 
+case "${HERMES_SKIP_PROFILE_RECONCILE:-}" in
+    1|true|TRUE|True|yes|YES|Yes)
+        echo "[02-reconcile-profiles] Skipping profile gateway reconciliation"
+        exit 0
+        ;;
+esac
+
 # Make the dynamic scandir hermes-writable. The directory itself
 # starts root-owned by s6-overlay.
 chown hermes:hermes /run/service 2>/dev/null || true

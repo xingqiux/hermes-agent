@@ -35,6 +35,7 @@ services:
       - ALL_PROXY=${ALL_PROXY:-http://172.19.0.1:17890}
       - TELEGRAM_PROXY=${TELEGRAM_PROXY:-http://172.19.0.1:17890}
       - NO_PROXY=${NO_PROXY:-127.0.0.1,localhost,::1,172.19.0.1,ilinkai.weixin.qq.com,novac2c.cdn.weixin.qq.com}
+      - HERMES_SKIP_PROFILE_RECONCILE=1
     extra_hosts:
       - "ilinkai.weixin.qq.com:180.101.242.203"
     command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
