@@ -278,6 +278,40 @@ def _is_accepted_host(host_header: str, bound_host: str) -> bool:
     return host_only == bound_lc
 
 
+def _host_only(value: str) -> str:
+    """Return a lowercase host without a port from a Host/netloc string."""
+    h = (value or "").strip()
+    if not h:
+        return ""
+    if h.startswith("["):
+        close = h.find("]")
+        if close != -1:
+            return h[1:close].lower()
+        return h.strip("[]").lower()
+    return (h.rsplit(":", 1)[0] if ":" in h else h).lower()
+
+
+def _public_url_host() -> str:
+    """Host declared by dashboard.public_url / HERMES_DASHBOARD_PUBLIC_URL."""
+    try:
+        from hermes_cli.dashboard_auth.prefix import resolve_public_url
+    except Exception:
+        return ""
+    public_url = resolve_public_url()
+    if not public_url:
+        return ""
+    try:
+        parsed = urllib.parse.urlparse(public_url)
+    except ValueError:
+        return ""
+    return _host_only(parsed.netloc)
+
+
+def _is_public_url_host(value: str) -> bool:
+    public_host = _public_url_host()
+    return bool(public_host and _host_only(value) == public_host)
+
+
 @app.middleware("http")
 async def host_header_middleware(request: Request, call_next):
     """Reject requests whose Host header doesn't match the bound interface.
@@ -295,7 +329,10 @@ async def host_header_middleware(request: Request, call_next):
     bound_host = getattr(app.state, "bound_host", None)
     if bound_host:
         host_header = request.headers.get("host", "")
-        if not _is_accepted_host(host_header, bound_host):
+        if not (
+            _is_accepted_host(host_header, bound_host)
+            or _is_public_url_host(host_header)
+        ):
             return JSONResponse(
                 status_code=400,
                 content={
@@ -7665,7 +7702,10 @@ def _ws_host_origin_reason(ws: "WebSocket") -> Optional[str]:
         return None
 
     host_header = ws.headers.get("host", "")
-    if not _is_accepted_host(host_header, bound_host):
+    if not (
+        _is_accepted_host(host_header, bound_host)
+        or _is_public_url_host(host_header)
+    ):
         return f"host_mismatch host={host_header or '?'} bound={bound_host}"
 
     origin = ws.headers.get("origin", "")
@@ -7682,7 +7722,10 @@ def _ws_host_origin_reason(ws: "WebSocket") -> Optional[str]:
     if not parsed.netloc:
         return f"origin_mismatch origin={origin} bound={bound_host}"
 
-    if not _is_accepted_host(parsed.netloc, bound_host):
+    if not (
+        _is_accepted_host(parsed.netloc, bound_host)
+        or _is_public_url_host(parsed.netloc)
+    ):
         return f"origin_mismatch origin={origin} bound={bound_host}"
     return None
 

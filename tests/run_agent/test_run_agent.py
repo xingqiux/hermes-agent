@@ -803,6 +803,51 @@ class TestInit:
             )
             assert a._use_prompt_caching is False
 
+    def test_explicit_base_url_preserved_when_api_key_resolves_from_env(self):
+        """A caller-supplied base_url must not be replaced by provider env URL.
+
+        Gateway and one-shot paths can pass a concrete base_url while leaving
+        api_key empty so provider auth still resolves from env/config.  The
+        base_url is still explicit and may include required path suffixes like
+        /v1.
+        """
+        with (
+            patch("run_agent.get_tool_definitions", return_value=[]),
+            patch("run_agent.check_toolset_requirements", return_value={}),
+            patch("run_agent.OpenAI"),
+            patch.dict(
+                "os.environ",
+                {
+                    "DEEPSEEK_API_KEY": "env-deepseek-key",
+                    "DEEPSEEK_BASE_URL": "https://api.xkqq.top",
+                },
+                clear=False,
+            ),
+            patch(
+                "hermes_cli.config.load_config",
+                return_value={
+                    "model": {
+                        "provider": "deepseek",
+                        "default": "deepseek-v4-flash",
+                        "base_url": "https://api.xkqq.top/v1",
+                        "api_mode": "chat_completions",
+                    },
+                },
+            ),
+        ):
+            a = AIAgent(
+                api_key="",
+                provider="deepseek",
+                model="deepseek-v4-flash",
+                base_url="https://api.xkqq.top/v1",
+                api_mode="chat_completions",
+                quiet_mode=True,
+                skip_context_files=True,
+                skip_memory=True,
+            )
+            assert a._client_kwargs["api_key"] == "env-deepseek-key"
+            assert a._client_kwargs["base_url"] == "https://api.xkqq.top/v1"
+
     def test_prompt_caching_native_anthropic(self):
         """Native Anthropic provider should enable prompt caching."""
         with (

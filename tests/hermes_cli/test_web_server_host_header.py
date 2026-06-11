@@ -131,6 +131,28 @@ class TestHostHeaderMiddleware:
             if hasattr(app.state, "bound_host"):
                 del app.state.bound_host
 
+    def test_public_url_host_request_accepted_for_loopback_reverse_proxy(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import hermes_cli.web_server as ws
+
+        ws.app.state.bound_host = "127.0.0.1"
+        monkeypatch.setattr(
+            "hermes_cli.dashboard_auth.prefix.resolve_public_url",
+            lambda: "https://agent.xkqq.top",
+        )
+        try:
+            client = TestClient(ws.app)
+            resp = client.get(
+                "/api/status",
+                headers={"Host": "agent.xkqq.top"},
+            )
+            assert resp.status_code != 400 or (
+                "Invalid Host header" not in resp.json().get("detail", "")
+            )
+        finally:
+            if hasattr(ws.app.state, "bound_host"):
+                del ws.app.state.bound_host
+
     def test_no_bound_host_skips_validation(self):
         """If app.state.bound_host isn't set (e.g. running under test
         infra without calling start_server), middleware must pass through
@@ -212,6 +234,29 @@ class TestWebSocketHostOriginGuard:
             headers={
                 "Host": "localhost:9119",
                 "Origin": "http://localhost:9119",
+            },
+        ):
+            pass
+
+    def test_public_url_origin_is_accepted_for_loopback_reverse_proxy(self, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        import hermes_cli.web_server as ws
+
+        monkeypatch.setattr(ws.app.state, "bound_host", "127.0.0.1", raising=False)
+        monkeypatch.setattr(ws, "_DASHBOARD_EMBEDDED_CHAT_ENABLED", True)
+        monkeypatch.setattr(
+            "hermes_cli.dashboard_auth.prefix.resolve_public_url",
+            lambda: "https://agent.xkqq.top",
+        )
+
+        client = TestClient(ws.app)
+        url = f"/api/events?token={ws._SESSION_TOKEN}&channel=security-test"
+        with client.websocket_connect(
+            url,
+            headers={
+                "Host": "agent.xkqq.top",
+                "Origin": "https://agent.xkqq.top",
             },
         ):
             pass

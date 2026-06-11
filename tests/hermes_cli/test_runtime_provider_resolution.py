@@ -337,6 +337,39 @@ def test_resolve_runtime_provider_lmstudio_saved_base_url_wins_over_env(monkeypa
     assert resolved["api_key"] == "dummy-lm-api-key"
 
 
+def test_resolve_runtime_provider_api_key_provider_config_base_url_wins_over_env(monkeypatch):
+    """Saved model.base_url must win over stale provider BASE_URL env vars.
+
+    This is especially important for OpenAI-compatible proxies where the
+    config stores ``/v1`` but an older env var may only contain the origin.
+    """
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://api.xkqq.top")
+    monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "deepseek")
+    monkeypatch.setattr(
+        rp,
+        "_get_model_config",
+        lambda: {
+            "provider": "deepseek",
+            "base_url": "https://api.xkqq.top/v1",
+            "default": "deepseek-v4-flash",
+            "api_mode": "chat_completions",
+        },
+    )
+    monkeypatch.setattr(
+        rp,
+        "load_pool",
+        lambda provider: type("Pool", (), {"has_credentials": lambda self: False})(),
+    )
+
+    resolved = rp.resolve_runtime_provider(requested="deepseek")
+
+    assert resolved["provider"] == "deepseek"
+    assert resolved["api_mode"] == "chat_completions"
+    assert resolved["api_key"] == "deepseek-key"
+    assert resolved["base_url"] == "https://api.xkqq.top/v1"
+
+
 def test_resolve_runtime_provider_openrouter_explicit(monkeypatch):
     monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openrouter")
     monkeypatch.setattr(rp, "_get_model_config", lambda: {})

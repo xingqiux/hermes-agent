@@ -748,12 +748,25 @@ def init_agent(
             # No explicit creds — use the centralized provider router
             from agent.auxiliary_client import resolve_provider_client
             _routed_client, _ = resolve_provider_client(
-                agent.provider or "auto", model=agent.model, raw_codex=True)
+                agent.provider or "auto",
+                model=agent.model,
+                raw_codex=True,
+                explicit_base_url=base_url or None,
+            )
             if _routed_client is not None:
+                _routed_base_url = base_url or str(_routed_client.base_url)
+                _routed_parsed_url = urlparse(_routed_base_url)
                 client_kwargs = {
                     "api_key": _routed_client.api_key,
-                    "base_url": str(_routed_client.base_url),
+                    "base_url": _routed_base_url,
                 }
+                if _routed_parsed_url.query:
+                    client_kwargs["base_url"] = urlunparse(
+                        _routed_parsed_url._replace(query="")
+                    )
+                    client_kwargs["default_query"] = {
+                        k: v[0] for k, v in parse_qs(_routed_parsed_url.query).items()
+                    }
                 if _provider_timeout is not None:
                     client_kwargs["timeout"] = _provider_timeout
                 # Preserve provider-specific headers the router set.  The
