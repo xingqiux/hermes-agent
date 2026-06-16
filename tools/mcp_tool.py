@@ -1003,12 +1003,22 @@ class SamplingHandler:
     # -- Session kwargs helper -----------------------------------------------
 
     def session_kwargs(self) -> dict:
-        """Return kwargs to pass to ClientSession for sampling support."""
+        """Return kwargs to pass to ClientSession for sampling support.
+
+        Some Java MCP servers (including Luckin/Ruixing's streamable HTTP
+        gateway) still validate initialize.capabilities.sampling against an
+        older schema that rejects the newer ``sampling.tools`` sub-capability.
+        Tool-use *responses* still work through our sampling callback, so keep
+        sampling enabled but advertise the minimal sampling capability by
+        default.  Server-specific opt-in is available for MCP servers that
+        require explicit tool sampling advertisement.
+        """
+        capability_kwargs = {}
+        if self.config.get("sampling_tools_capability", False):
+            capability_kwargs["tools"] = SamplingToolsCapability()
         return {
             "sampling_callback": self,
-            "sampling_capabilities": SamplingCapability(
-                tools=SamplingToolsCapability(),
-            ),
+            "sampling_capabilities": SamplingCapability(**capability_kwargs),
         }
 
     # -- Main callback -------------------------------------------------------
