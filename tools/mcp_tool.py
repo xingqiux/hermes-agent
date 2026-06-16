@@ -799,6 +799,7 @@ class SamplingHandler:
         )
         self.model_override = config.get("model")
         self.allowed_models = config.get("allowed_models", [])
+        self.sampling_tools_capability = bool(config.get("sampling_tools_capability", False))
 
         _log_levels = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING}
         self.audit_level = _log_levels.get(
@@ -1014,7 +1015,7 @@ class SamplingHandler:
         require explicit tool sampling advertisement.
         """
         capability_kwargs = {}
-        if self.config.get("sampling_tools_capability", False):
+        if self.sampling_tools_capability:
             capability_kwargs["tools"] = SamplingToolsCapability()
         return {
             "sampling_callback": self,
