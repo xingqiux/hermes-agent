@@ -107,6 +107,7 @@ export const en: Translations = {
     activeSessions: "Active Sessions",
     connected: "Connected",
     connectedPlatforms: "Connected Platforms",
+    disabled: "Disabled",
     disconnected: "Disconnected",
     error: "Error",
     failed: "Failed",
@@ -120,6 +121,9 @@ export const en: Translations = {
     platformError: "error",
     recentSessions: "Recent Sessions",
     restartGateway: "Restart Gateway",
+    restartGatewayConfirmMessage:
+      "This restarts the Hermes gateway process. Connected channels and active sessions will reconnect afterward.",
+    restartGatewayConfirmTitle: "Restart gateway?",
     restartingGateway: "Restarting gateway…",
     running: "Running",
     runningRemote: "Running (remote)",
@@ -169,6 +173,7 @@ export const en: Translations = {
     selectedSessionsDeleted: "{count} sessions deleted",
     failedToDeleteSelected: "Failed to delete selected sessions",
     resumeInChat: "Resume in Chat",
+    newChat: "New chat",
     previousPage: "Previous page",
     nextPage: "Next page",
     roles: {
@@ -483,6 +488,14 @@ export const en: Translations = {
     replaceCurrentValue: "Replace current value ({preview})",
     showValue: "Show real value",
     hideValue: "Hide value",
+    customTitle: "Custom Keys",
+    customHint: "Arbitrary environment variables stored in your .env that Hermes doesn't recognise. Use these to inject env vars for skills, MCP servers, or your own tooling.",
+    customConfigured: "{count} custom key{s} set",
+    addCustomKey: "Add a custom key",
+    customKeyName: "Variable name",
+    customKeyNamePlaceholder: "e.g. MY_SERVICE_API_KEY",
+    add: "Add",
+    invalidKeyName: "Use letters, numbers and underscores only (must start with a letter or underscore).",
   },
 
   oauth: {
