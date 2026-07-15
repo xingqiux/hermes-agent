@@ -344,7 +344,7 @@ class NapCatAdapter(BasePlatformAdapter):
 
     # ── Connection ─────────────────────────────────────────────────────────
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
         if not self._http_api:
             logger.error("NapCat: http_api is not configured")
             return False
