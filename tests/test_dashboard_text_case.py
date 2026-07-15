@@ -20,4 +20,17 @@ def test_dashboard_uppercase_utility_is_neutralized_for_localized_fork():
     css = (ROOT / "web" / "src" / "index.css").read_text(encoding="utf-8")
 
     assert "#root .uppercase" in css
+    assert "#root .text-display" in css
+    assert '[class*="tracking-"]' in css
     assert "text-transform: none" in css
+    assert "letter-spacing: 0" in css
+
+
+def test_models_page_new_settings_copy_uses_i18n():
+    page = (ROOT / "web" / "src" / "pages" / "ModelsPage.tsx").read_text(
+        encoding="utf-8"
+    )
+    zh = (ROOT / "web" / "src" / "i18n" / "zh.ts").read_text(encoding="utf-8")
+
+    assert 'mt("modelSettings", "Model Settings")' in page
+    assert 'modelSettings: "模型设置"' in zh

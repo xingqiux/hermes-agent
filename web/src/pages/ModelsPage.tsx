@@ -209,6 +209,8 @@ function UseAsMenu({
   mainAuxTask: string | null;
   onAssigned(): void;
 }) {
+  const { t } = useI18n();
+  const mt = (key: string, fallback: string) => t.models.page?.[key] ?? fallback;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +279,7 @@ function UseAsMenu({
         className="h-6 px-2 text-xs uppercase"
         prefix={busy ? <Spinner /> : null}
       >
-        Use as <ChevronDown className="h-3 w-3" />
+        {mt("useAs", "Use as")} <ChevronDown className="h-3 w-3" />
       </Button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 min-w-[220px] border border-border bg-card shadow-lg">
@@ -289,17 +291,17 @@ function UseAsMenu({
           >
             <span className="flex items-center gap-2">
               <Star className="h-3 w-3" />
-              Main model
+              {mt("mainModel", "Main model")}
             </span>
             {isMain && (
               <span className="text-display text-xs tracking-wider text-primary">
-                current
+                {mt("current", "Current")}
               </span>
             )}
           </button>
 
           <div className="border-t border-border/50 px-3 py-1.5 text-display text-xs tracking-wider text-text-tertiary">
-            Auxiliary task
+            {mt("auxiliaryTasks", "Auxiliary tasks")}
           </div>
 
           <button
@@ -308,7 +310,7 @@ function UseAsMenu({
             disabled={busy}
             className="flex w-full items-center justify-between px-3 py-1.5 text-xs uppercase hover:bg-muted/50 disabled:opacity-40"
           >
-            <span>All auxiliary tasks</span>
+            <span>{mt("allAuxiliaryTasks", "All auxiliary tasks")}</span>
           </button>
 
           {AUX_TASKS.map((t) => (
@@ -322,7 +324,7 @@ function UseAsMenu({
               <span>{t.label}</span>
               {mainAuxTask === t.key && (
                 <span className="text-display text-xs tracking-wider text-primary">
-                  current
+                  {mt("current", "Current")}
                 </span>
               )}
             </button>
@@ -337,11 +339,11 @@ function UseAsMenu({
       )}
       <ConfirmDialog
         open={!!pendingConfirm}
-        title="Expensive Model Warning"
+        title={mt("expensiveModelWarning", "Expensive model warning")}
         description={pendingConfirm?.message}
         destructive
-        confirmLabel="Switch anyway"
-        cancelLabel="Cancel"
+        confirmLabel={mt("switchAnyway", "Switch anyway")}
+        cancelLabel={mt("cancel", "Cancel")}
         loading={busy}
         onCancel={() => setPendingConfirm(null)}
         onConfirm={() => {
@@ -875,6 +877,8 @@ function ModelSettingsPanel({
   refreshKey: number;
   onSaved(): void;
 }) {
+  const { t } = useI18n();
+  const mt = (key: string, fallback: string) => t.models.page?.[key] ?? fallback;
   const [auxModalOpen, setAuxModalOpen] = useState(false);
   const [moaModalOpen, setMoaModalOpen] = useState(false);
   const [moa, setMoa] = useState<MoaConfigResponse | null>(null);
@@ -924,9 +928,9 @@ function ModelSettingsPanel({
       <CardHeader className="min-w-0 pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <CardTitle className="text-sm">Model Settings</CardTitle>
+          <CardTitle className="text-sm">{mt("modelSettings", "Model Settings")}</CardTitle>
           <span className="max-w-full min-w-0 text-xs text-text-secondary [overflow-wrap:anywhere]">
-            applies to new sessions
+            {mt("appliesToNewSessions", "Applies to new sessions")}
           </span>
         </div>
       </CardHeader>
@@ -938,13 +942,13 @@ function ModelSettingsPanel({
             <div className="flex items-center gap-2 mb-0.5">
               <Star className="h-3 w-3 text-primary" />
               <span className="text-display text-xs font-medium tracking-wider">
-                Main model
+                {mt("mainModel", "Main model")}
               </span>
             </div>
             <div className="text-xs font-mono text-text-secondary truncate">
-              {mainProv || "(unset)"}
+              {mainProv || `(${mt("unset", "Not set")})`}
               {mainProv && mainModel && " · "}
-              {mainModel || "(unset)"}
+              {mainModel || `(${mt("unset", "Not set")})`}
             </div>
           </div>
           <Button
@@ -952,7 +956,7 @@ function ModelSettingsPanel({
             onClick={() => setPicker({ kind: "main" })}
             className="shrink-0 self-start text-xs uppercase sm:self-center"
           >
-            Change
+            {mt("change", "Change")}
           </Button>
         </div>
 
@@ -962,13 +966,13 @@ function ModelSettingsPanel({
             <div className="flex items-center gap-2 mb-0.5">
               <Cpu className="h-3 w-3 text-text-tertiary" />
               <span className="text-display text-xs font-medium tracking-wider">
-                Auxiliary tasks
+                {mt("auxiliaryTasks", "Auxiliary tasks")}
               </span>
             </div>
             <div className="text-xs font-mono text-text-secondary truncate">
               {auxOverrideCount > 0
-                ? `${auxOverrideCount} override${auxOverrideCount > 1 ? "s" : ""} · ${AUX_TASKS.length - auxOverrideCount} auto`
-                : `${AUX_TASKS.length} tasks · all auto`}
+                ? `${auxOverrideCount} ${mt("overrides", "overrides")} · ${AUX_TASKS.length - auxOverrideCount} ${mt("automatic", "automatic")}`
+                : `${AUX_TASKS.length} ${mt("tasksAllAutomatic", "tasks, all automatic")}`}
             </div>
           </div>
           <Button
@@ -977,7 +981,7 @@ function ModelSettingsPanel({
             onClick={() => setAuxModalOpen(true)}
             className="shrink-0 self-start text-xs uppercase sm:self-center"
           >
-            Configure
+            {mt("configure", "Configure")}
           </Button>
         </div>
 
@@ -986,13 +990,13 @@ function ModelSettingsPanel({
             <div className="flex items-center gap-2 mb-0.5">
               <Brain className="h-3 w-3 text-text-tertiary" />
               <span className="text-display text-xs font-medium tracking-wider">
-                Mixture of Agents
+                {mt("mixtureOfAgents", "Mixture of Agents")}
               </span>
             </div>
             <div className="text-xs font-mono text-text-secondary truncate">
               {moa
-                ? `${moa.reference_models.length} reference${moa.reference_models.length === 1 ? "" : "s"} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
-                : "not loaded"}
+                ? `${moa.reference_models.length} ${mt("references", "references")} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
+                : mt("notLoaded", "Not loaded")}
             </div>
           </div>
           <Button
@@ -1002,7 +1006,7 @@ function ModelSettingsPanel({
             disabled={!moa}
             className="shrink-0 self-start text-xs uppercase sm:self-center"
           >
-            Configure
+            {mt("configure", "Configure")}
           </Button>
         </div>
 
@@ -1011,7 +1015,7 @@ function ModelSettingsPanel({
             key={`picker-${refreshKey}`}
             loader={api.getModelOptions}
             alwaysGlobal
-            title="Set Main Model"
+            title={mt("switchModel", "Switch model")}
             onApply={async ({ provider, model, confirmExpensiveModel }) => {
               const result = await applyAssignment({
                 confirmExpensiveModel,
@@ -1074,6 +1078,7 @@ export default function ModelsPage() {
   // calls and retries, so they're misleading next to provider billing.
   const [showTokens, setShowTokens] = useState(false);
   const { t } = useI18n();
+  const mt = (key: string, fallback: string) => t.models.page?.[key] ?? fallback;
   const { setAfterTitle, setEnd } = usePageHeader();
 
   useEffect(() => {
@@ -1240,13 +1245,15 @@ export default function ModelsPage() {
               </div>
               {!showTokens && (
                 <p className="mt-4 text-xs text-text-tertiary leading-relaxed">
-                  Token & cost analytics are hidden because the local counts
-                  exclude auxiliary calls (compression, vision, web extract,
-                  …) and provider retries, so they diverge from your provider
-                  bill. Enable{" "}
+                  {mt(
+                    "analyticsHiddenBefore",
+                    "Token and cost analytics are hidden because local counts exclude auxiliary calls and provider retries. Enable",
+                  )}{" "}
                   <span className="font-mono">dashboard.show_token_analytics</span>{" "}
-                  in <a href="/config" className="underline">Config</a> to
-                  show the local debug estimate anyway.
+                  {mt(
+                    "analyticsHiddenAfter",
+                    "in Config to show the local debug estimate.",
+                  )}
                 </p>
               )}
             </CardContent>

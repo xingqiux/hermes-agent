@@ -228,6 +228,7 @@ export interface Translations {
 
   // ── Models page ──
   models: {
+    page?: Record<string, string>;
     modelsUsed: string;
     estimatedCost: string;
     tokens: string;

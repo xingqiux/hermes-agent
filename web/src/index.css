@@ -129,8 +129,14 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
   overflow: hidden;
 }
 
-#root .uppercase {
+#root .uppercase,
+#root .text-display {
   text-transform: none;
+}
+
+#root .text-display,
+#root [class*="tracking-"] {
+  letter-spacing: 0;
 }
 
 @media (max-width: 768px) {
