@@ -1,0 +1,43 @@
+name: Fork goals
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-goals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Fork goal contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # 8.2.0
+      - run: uv python install 3.11
+      - name: Check custom provider and reverse proxy contracts
+        run: |
+          uv run --locked --python 3.11 --extra dev pytest -q \
+            tests/run_agent/test_run_agent.py::TestInit::test_explicit_base_url_preserved_when_api_key_resolves_from_env \
+            tests/hermes_cli/test_web_server_host_header.py::TestHostHeaderMiddleware::test_public_url_host_request_accepted_for_loopback_reverse_proxy \
+            tests/hermes_cli/test_web_server_host_header.py::TestWebSocketHostOriginGuard::test_public_url_origin_is_accepted_for_loopback_reverse_proxy
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check critical Chinese Dashboard coverage
+        run: npm run --workspace web test -- src/i18n/xkqqForkGoals.test.ts
+
+      - name: Validate production Compose
+        env:
+          HERMES_IMAGE: docker.xkqq.top/xingqiux/hermes-agent:test
+        run: docker compose -f docker-compose.xkqq.yml config --quiet
