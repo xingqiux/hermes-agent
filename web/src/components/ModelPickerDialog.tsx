@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { cn, themedBody } from "@/lib/utils";
 import { fuzzyRank } from "@/lib/fuzzy";
 import { queryMatchesProviderOnly } from "@/lib/model-picker-filter";
+import { useI18n } from "@/i18n";
 
 /**
  * Two-stage model picker modal.
@@ -97,9 +98,11 @@ export function ModelPickerDialog(props: Props) {
     loader,
     onApply,
     onClose,
-    title = "Switch Model",
+    title,
     alwaysGlobal = false,
   } = props;
+  const { t } = useI18n();
+  const mt = t.models.page;
   const standalone = !!loader && !!onApply;
 
   const [providers, setProviders] = useState<ModelOptionProvider[]>([]);
@@ -282,7 +285,8 @@ export function ModelPickerDialog(props: Props) {
             message:
               result.confirm_message ||
               result.warning ||
-              "This model has unusually high known pricing.",
+              (mt?.unusuallyHighPricing ??
+                "This model has unusually high known pricing."),
           });
           return;
         }
@@ -310,7 +314,8 @@ export function ModelPickerDialog(props: Props) {
             message:
               result.confirm_message ||
               result.warning ||
-              "This model has unusually high known pricing.",
+              (mt?.unusuallyHighPricing ??
+                "This model has unusually high known pricing."),
           });
           return;
         }
@@ -353,7 +358,7 @@ export function ModelPickerDialog(props: Props) {
           size="icon"
           onClick={onClose}
           className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-          aria-label="Close"
+          aria-label={t.common.close}
         >
           <X />
         </Button>
@@ -363,10 +368,11 @@ export function ModelPickerDialog(props: Props) {
             id="model-picker-title"
             className="font-mondwest text-display text-base tracking-wider"
           >
-            {title}
+            {title ?? mt?.switchModel ?? "Switch Model"}
           </h2>
           <p className="text-xs text-muted-foreground mt-1 font-mono">
-            current: {currentModel || "(unknown)"}
+            {mt?.currentModel ?? "current:"}{" "}
+            {currentModel || (mt?.unknown ?? "(unknown)")}
             {currentProviderSlug && ` · ${currentProviderSlug}`}
           </p>
         </header>
@@ -376,7 +382,7 @@ export function ModelPickerDialog(props: Props) {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               autoFocus
-              placeholder="Filter providers and models…"
+              placeholder={mt?.filterModels ?? "Filter providers and models…"}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-7 h-8 text-sm"
@@ -421,7 +427,8 @@ export function ModelPickerDialog(props: Props) {
         <footer className="border-t border-border p-3 flex items-center justify-between gap-3 flex-wrap">
           {alwaysGlobal ? (
             <span className="text-xs text-muted-foreground">
-              Saves to config.yaml — applies to new sessions.
+              {mt?.savesGlobally ??
+                "Saves to config.yaml — applies to new sessions."}
             </span>
           ) : (
             <div className="flex items-center gap-2">
@@ -437,7 +444,8 @@ export function ModelPickerDialog(props: Props) {
                 className="font-mondwest normal-case tracking-normal text-xs text-muted-foreground cursor-pointer"
                 htmlFor="model-picker-persist-global"
               >
-                Persist globally (otherwise this session only)
+                {mt?.appliesToNewSessions ??
+                  "Persist globally (otherwise this session only)"}
               </Label>
             </div>
           )}
@@ -449,24 +457,24 @@ export function ModelPickerDialog(props: Props) {
               disabled={applying || loading || refreshing}
             >
               {refreshing ? <Spinner /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Refresh Models
+              {mt?.refreshModels ?? "Refresh Models"}
             </Button>
             <Button outlined onClick={onClose} disabled={applying}>
-              Cancel
+              {mt?.cancel ?? "Cancel"}
             </Button>
             <Button onClick={confirm} disabled={!canConfirm}>
-              {applying ? <Spinner /> : "Switch"}
+              {applying ? <Spinner /> : (mt?.switch ?? "Switch")}
             </Button>
           </div>
         </footer>
       </div>
       <ConfirmDialog
         open={!!pendingConfirm}
-        title="Expensive Model Warning"
+        title={mt?.expensiveModelWarning ?? "Expensive Model Warning"}
         description={pendingConfirm?.message}
         destructive
-        confirmLabel="Switch anyway"
-        cancelLabel="Cancel"
+        confirmLabel={mt?.switchAnyway ?? "Switch anyway"}
+        cancelLabel={mt?.cancel ?? "Cancel"}
         loading={applying}
         onCancel={() => setPendingConfirm(null)}
         onConfirm={() => {
@@ -502,11 +510,13 @@ function ProviderColumn({
   query: string;
   onSelect(slug: string): void;
 }) {
+  const { t } = useI18n();
+  const mt = t.models.page;
   return (
     <div className="border-r border-border overflow-y-auto">
       {loading && (
         <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
-          <Spinner className="text-xs" /> loading…
+          <Spinner className="text-xs" /> {t.common.loading}
         </div>
       )}
 
@@ -515,10 +525,11 @@ function ProviderColumn({
       {!loading && !error && providers.length === 0 && (
         <div className="p-4 text-xs text-muted-foreground italic">
           {query
-            ? "no matches"
+            ? (mt?.noMatches ?? "no matches")
             : total === 0
-              ? "no authenticated providers"
-              : "no matches"}
+              ? (mt?.noAuthenticatedProviders ??
+                "no authenticated providers")
+              : (mt?.noMatches ?? "no matches")}
         </div>
       )}
 
@@ -539,7 +550,12 @@ function ProviderColumn({
                 {p.is_current && <CurrentTag />}
               </div>
               <div className="text-xs text-text-secondary font-mono truncate">
-                {p.slug} · {p.total_models ?? p.models?.length ?? 0} models
+                {p.slug} · {(
+                  mt?.modelCount ?? "{count} models"
+                ).replace(
+                  "{count}",
+                  String(p.total_models ?? p.models?.length ?? 0),
+                )}
               </div>
             </div>
           </ListItem>
@@ -572,11 +588,13 @@ function ModelColumn({
   onSelect(model: string): void;
   onConfirm(model: string): void;
 }) {
+  const { t } = useI18n();
+  const mt = t.models.page;
   if (!provider) {
     return (
       <div className="overflow-y-auto">
         <div className="p-4 text-xs text-muted-foreground italic">
-          pick a provider →
+          {mt?.pickProvider ?? "pick a provider →"}
         </div>
       </div>
     );
@@ -593,8 +611,9 @@ function ModelColumn({
       {models.length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground italic">
           {allModels.length
-            ? "no models match your filter"
-            : "no models listed for this provider"}
+            ? (mt?.noModelsMatch ?? "no models match your filter")
+            : (mt?.noModelsListed ??
+              "no models listed for this provider")}
         </div>
       ) : (
         models.map(({ model: m, positions }) => {
@@ -626,9 +645,10 @@ function ModelColumn({
 }
 
 function CurrentTag() {
+  const { t } = useI18n();
   return (
     <span className="text-display text-xs tracking-wider text-primary shrink-0">
-      current
+      {t.models.page?.current ?? "current"}
     </span>
   );
 }

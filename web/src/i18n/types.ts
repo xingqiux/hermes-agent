@@ -116,6 +116,17 @@ export interface Translations {
     managingProfileBanner?: string;
   };
 
+  // ── Chat page ──
+  // Optional so locales without these newer Dashboard strings preserve the
+  // existing English literals in the components.
+  chat?: {
+    copyLastResponse: string;
+    copyLastResponseTitle: string;
+    model: string;
+    reconnectToolsFeed: string;
+    switchModel: string;
+  };
+
   // ── Status page ──
   status: {
     actionFailed: string;
@@ -227,6 +238,76 @@ export interface Translations {
 
   // ── Models page ──
   models: {
+    /** Optional strings for the newer model-management UI. */
+    page?: {
+      addPreset: string;
+      addReferenceModel: string;
+      aggregator: string;
+      allAuxiliaryTasks: string;
+      analyticsHiddenAfterConfig: string;
+      analyticsHiddenBeforeConfig: string;
+      analyticsHiddenConfig: string;
+      appliesToNewSessions: string;
+      automatic: string;
+      auxiliaryTasks: string;
+      auxiliaryTasksDescription: string;
+      autoUseMainModel: string;
+      cacheRead: string;
+      cancel: string;
+      change: string;
+      configure: string;
+      configureMoaPresets: string;
+      current: string;
+      currentModel: string;
+      defaultLabel: string;
+      deletePreset: string;
+      expensiveModelWarning: string;
+      filterModels: string;
+      input: string;
+      mainModel: string;
+      mixtureOfAgents: string;
+      moaDescription: string;
+      modelCount: string;
+      modelPlaceholder: string;
+      modelSettings: string;
+      newPresetName: string;
+      noAuthenticatedProviders: string;
+      noMatches: string;
+      noModelsListed: string;
+      noModelsMatch: string;
+      notLoaded: string;
+      output: string;
+      overrides: string;
+      pickProvider: string;
+      providerDefault: string;
+      providerPlaceholder: string;
+      reasoning: string;
+      recursiveMoaError: string;
+      referenceModels: string;
+      references: string;
+      refreshModels: string;
+      remove: string;
+      resetAll: string;
+      resetAllToAuto: string;
+      resetAuxiliaryDescription: string;
+      resetAuxiliaryModels: string;
+      save: string;
+      savesGlobally: string;
+      saving: string;
+      selectMoaModel: string;
+      setAuxiliary: string;
+      setDefault: string;
+      switch: string;
+      switchAnyway: string;
+      switchModel: string;
+      tasksAllAutomatic: string;
+      tools: string;
+      unknown: string;
+      unusuallyHighPricing: string;
+      unset: string;
+      useAs: string;
+      vision: string;
+    };
     modelsUsed: string;
     estimatedCost: string;
     tokens: string;
@@ -528,6 +609,9 @@ export interface Translations {
     noProviders: string;
     login: string;
     disconnect: string;
+    /** Optional newer Dashboard strings; components keep English fallbacks. */
+    disconnectConfirm?: string;
+    openDocs?: string;
     managedExternally: string;
     copied: string;
     copyCode: string;
