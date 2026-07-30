@@ -1,6 +1,6 @@
 services:
   gateway:
-    image: ${HERMES_IMAGE:-docker.xkqq.top/xingqiux/hermes-agent:latest}
+    image: ${HERMES_IMAGE:-ghcr.io/xingqiux/hermes-agent:latest}
     container_name: hermes
     restart: unless-stopped
     network_mode: host
@@ -19,7 +19,7 @@ services:
     command: ["gateway", "run"]
 
   dashboard:
-    image: ${HERMES_IMAGE:-docker.xkqq.top/xingqiux/hermes-agent:latest}
+    image: ${HERMES_IMAGE:-ghcr.io/xingqiux/hermes-agent:latest}
     container_name: hermes-dashboard
     restart: unless-stopped
     network_mode: host

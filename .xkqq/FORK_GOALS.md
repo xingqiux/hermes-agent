@@ -78,4 +78,4 @@ contract, bypassing CI, changing repository settings, or pushing to `main`.
 
 Automation credentials live in GitHub Environments restricted to `main`, never
 in repository-wide Actions secrets. Sync PR code must not receive the fork
-automation token, webhook secret, registry credentials, or production access.
+automation token, webhook secret, or production access.

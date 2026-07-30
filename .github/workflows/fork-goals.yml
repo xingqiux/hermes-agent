@@ -39,5 +39,5 @@ jobs:
 
       - name: Validate production Compose
         env:
-          HERMES_IMAGE: docker.xkqq.top/xingqiux/hermes-agent:test
+          HERMES_IMAGE: ghcr.io/xingqiux/hermes-agent:test
         run: docker compose -f docker-compose.xkqq.yml config --quiet
