@@ -21,7 +21,7 @@ import { api, fetchJSON, authedFetch, buildWsUrl, buildWsAuthParam } from "@/lib
 import { cn, timeAgo, isoTimeAgo } from "@/lib/utils";
 import { Badge } from "@nous-research/ui/ui/components/badge";
 import { Button } from "@nous-research/ui/ui/components/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@nous-research/ui/ui/components/checkbox";
 import { Select, SelectOption } from "@nous-research/ui/ui/components/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@nous-research/ui/ui/components/card";
 import { Input } from "@nous-research/ui/ui/components/input";

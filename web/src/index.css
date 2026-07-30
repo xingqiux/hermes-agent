@@ -129,16 +129,6 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
   overflow: hidden;
 }
 
-#root .uppercase,
-#root .text-display {
-  text-transform: none;
-}
-
-#root .text-display,
-#root [class*="tracking-"] {
-  letter-spacing: 0;
-}
-
 @media (max-width: 768px) {
   html,
   body,
@@ -254,3 +244,4 @@ code { font-size: 0.875rem; }
   background: repeating-conic-gradient(currentColor 0% 25%, #0000 0% 50%) 0 0 /
     2px 2px;
 }
+

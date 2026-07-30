@@ -25,7 +25,7 @@ export function QueuedMessages({ cols, queueEditIdx, queued, t }: QueuedMessages
     <Box flexDirection="column" marginTop={1}>
       <Text color={t.color.muted} dimColor>
         {`queued (${queued.length})${
-          queueEditIdx !== null ? ` · 正在编辑第 ${queueEditIdx + 1} 条 · Ctrl+X 删除 · Esc 取消` : ''
+          queueEditIdx !== null ? ` · editing ${queueEditIdx + 1} · Ctrl+X delete · Esc cancel` : ''
         }`}
       </Text>
 
@@ -49,7 +49,7 @@ export function QueuedMessages({ cols, queueEditIdx, queued, t }: QueuedMessages
 
       {q.showTail && (
         <Text color={t.color.muted} dimColor>
-          {'  '}…还有 {queued.length - q.end} 条
+          {'  '}…and {queued.length - q.end} more
         </Text>
       )}
     </Box>

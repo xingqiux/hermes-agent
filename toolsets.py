@@ -75,6 +75,7 @@ _HERMES_CORE_TOOLS = [
     "kanban_complete", "kanban_block", "kanban_heartbeat",
     "kanban_comment", "kanban_create", "kanban_link",
     "kanban_unblock",
+    "kanban_attach", "kanban_attach_url", "kanban_attachments",
     # Computer use (macOS, gated on cua-driver being installed via check_fn)
     "computer_use",
 ]
@@ -264,14 +265,15 @@ TOOLSETS = {
             "set). The dispatcher runs inside the gateway by default; see "
             "`kanban.dispatch_in_gateway` in config.yaml. Lets workers mark "
             "tasks done with structured handoffs, block for human input, "
-            "heartbeat during long ops, comment on threads, and (for "
-            "orchestrators) list, unblock, and fan out tasks."
+            "heartbeat during long ops, comment on threads, attach files, and "
+            "(for orchestrators) list, unblock, and fan out tasks."
         ),
         "tools": [
             "kanban_show", "kanban_list", "kanban_complete", "kanban_block",
             "kanban_heartbeat", "kanban_comment",
             "kanban_create", "kanban_link",
             "kanban_unblock",
+            "kanban_attach", "kanban_attach_url", "kanban_attachments",
         ],
         "includes": [],
     },
@@ -577,36 +579,8 @@ TOOLSETS = {
     "hermes-gateway": {
         "description": "Gateway toolset - union of all messaging platform tools",
         "tools": [],
-        "includes": ["hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-bluebubbles", "hermes-homeassistant", "hermes-email", "hermes-sms", "hermes-mattermost", "hermes-matrix", "hermes-dingtalk", "hermes-feishu", "hermes-wecom", "hermes-wecom-callback", "hermes-weixin", "hermes-qqbot", "hermes-webhook", "hermes-yuanbao",
-        "hermes-napcat",  # napcat-installed
-    ]
-    },
-
-    "hermes-napcat": {  # napcat-installed
-        "description": "QQ (NapCat / OneBot 11) toolset — group management, messaging, files",
-        "tools": _HERMES_CORE_TOOLS + [
-            "qq_like_user", "qq_get_user_info", "qq_get_group_info",
-            "qq_get_group_member_info", "qq_mute_group_member", "qq_kick_group_member",
-            "qq_poke", "qq_recall_message", "qq_set_group_card", "qq_get_friend_list",
-            "qq_get_group_list", "qq_get_group_member_list", "qq_set_group_admin",
-            "qq_set_group_name", "qq_set_group_whole_ban", "qq_send_group_notice",
-            "qq_get_group_honor_info", "qq_send_message", "qq_upload_file",
-            "qq_forward_message", "qq_set_group_special_title", "qq_leave_group",
-            "qq_handle_friend_request", "qq_handle_group_request",
-            "qq_get_group_msg_history", "qq_get_friend_msg_history",
-            "qq_get_essence_msg_list", "qq_set_essence_msg", "qq_delete_essence_msg",
-            "qq_set_msg_emoji_like", "qq_ocr_image", "qq_set_friend_remark",
-            "qq_delete_friend", "qq_get_group_root_files", "qq_get_group_file_url",
-            "qq_create_group_file_folder", "qq_delete_group_file",
-            "qq_get_group_notice", "qq_delete_group_notice", "qq_set_group_portrait",
-            "qq_send_group_forward_msg", "qq_send_private_forward_msg",
-            "qq_mark_msg_as_read", "qq_get_group_at_all_remain",
-            "qq_translate_en2zh", "qq_download_file", "qq_set_group_sign",
-            "qq_set_group_remark", "qq_ai_voice",
-        ],
-        "includes": [],
-    },
-
+        "includes": ["hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-bluebubbles", "hermes-homeassistant", "hermes-email", "hermes-sms", "hermes-mattermost", "hermes-matrix", "hermes-dingtalk", "hermes-feishu", "hermes-wecom", "hermes-wecom-callback", "hermes-weixin", "hermes-qqbot", "hermes-webhook", "hermes-yuanbao"]
+    }
 }
 
 

@@ -424,9 +424,6 @@ DEFAULT_MODEL = "fal-ai/flux-2/klein/9b"
 
 DEFAULT_ASPECT_RATIO = "landscape"
 VALID_ASPECT_RATIOS = ("landscape", "square", "portrait")
-DEFAULT_IMAGE_QUALITY = "auto"
-VALID_IMAGE_QUALITIES = ("low", "medium", "high")
-IMAGE_QUALITY_SCHEMA_VALUES = (DEFAULT_IMAGE_QUALITY, *VALID_IMAGE_QUALITIES)
 
 
 # ---------------------------------------------------------------------------
@@ -602,13 +599,7 @@ def _build_fal_payload(
     if overrides:
         for k, v in overrides.items():
             if v is not None:
-                if k == "quality":
-                    normalized_quality = _normalize_image_quality(v)
-                    if normalized_quality is None:
-                        continue
-                    payload[k] = normalized_quality
-                else:
-                    payload[k] = v
+                payload[k] = v
 
     supports = meta["supports"]
     # ``prompt`` is required by every FAL text-to-image endpoint; keep it even
@@ -675,16 +666,6 @@ def _build_fal_edit_payload(
         k: v for k, v in payload.items()
         if k in edit_supports or k in _required
     }
-
-
-def _normalize_image_quality(value: Any) -> Optional[str]:
-    """Return a concrete GPT image quality, or ``None`` for auto/invalid."""
-    if not isinstance(value, str):
-        return None
-    normalized = value.strip().lower()
-    if normalized in VALID_IMAGE_QUALITIES:
-        return normalized
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -862,7 +843,6 @@ def image_generate_tool(
     num_images: Optional[int] = None,
     output_format: Optional[str] = None,
     seed: Optional[int] = None,
-    quality: str = DEFAULT_IMAGE_QUALITY,
     image_url: Optional[str] = None,
     reference_image_urls: Optional[list] = None,
 ) -> str:
@@ -872,8 +852,8 @@ def image_generate_tool(
     the configured model declares an ``edit_endpoint``, the call routes to that
     image-to-image / edit endpoint; otherwise it's plain text-to-image.
 
-    The agent-facing schema exposes ``prompt``, ``aspect_ratio``, ``quality``,
-    ``image_url`` and ``reference_image_urls``; the remaining kwargs are overrides for direct
+    The agent-facing schema exposes ``prompt``, ``aspect_ratio``, ``image_url``
+    and ``reference_image_urls``; the remaining kwargs are overrides for direct
     Python callers and are filtered per-model via the ``supports`` /
     ``edit_supports`` whitelist (unsupported overrides are silently dropped so
     legacy callers don't break when switching models).
@@ -906,7 +886,6 @@ def image_generate_tool(
             "num_images": num_images,
             "output_format": output_format,
             "seed": seed,
-            "quality": quality,
             "modality": modality,
             "source_images": len(source_images),
         },
@@ -953,9 +932,6 @@ def image_generate_tool(
             overrides["num_images"] = num_images
         if output_format is not None:
             overrides["output_format"] = output_format
-        normalized_quality = _normalize_image_quality(quality)
-        if normalized_quality is not None:
-            overrides["quality"] = normalized_quality
 
         if use_edit:
             # Clamp reference count to the model's declared cap.
@@ -1108,18 +1084,7 @@ def _build_no_backend_setup_message() -> str:
 
 
 def check_image_generation_requirements() -> bool:
-    """True if any image gen backend is available.
-
-    Providers are considered in this order:
-
-    1. The in-tree FAL backend (FAL_KEY or managed gateway).
-    2. Any plugin-registered provider whose ``is_available()`` returns True.
-
-    Plugins win only when the in-tree FAL path is NOT ready, which matches
-    the historical behavior: shipping hermes with a FAL key configured
-    should still expose the tool. The active selection among ready
-    providers is resolved per-call by ``image_gen.provider``.
-    """
+    """True if FAL or the explicitly configured image backend is available."""
     try:
         if check_fal_api_key():
             # Trigger the lazy fal_client import here as the SDK presence
@@ -1131,22 +1096,21 @@ def check_image_generation_requirements() -> bool:
     except ImportError:
         pass
 
-    # Probe plugin providers. Discovery is idempotent and cheap.
+    configured = _read_configured_image_provider()
+    if not configured or configured == "fal":
+        return False
+
+    # Probe only the explicitly selected plugin. Merely possessing a cloud
+    # provider key must not opt a user into a paid image-generation backend.
     try:
-        from agent.image_gen_registry import list_providers
+        from agent.image_gen_registry import get_provider
         from hermes_cli.plugins import _ensure_plugins_discovered
 
         _ensure_plugins_discovered()
-        for provider in list_providers():
-            try:
-                if provider.is_available():
-                    return True
-            except Exception:
-                continue
+        provider = get_provider(configured)
+        return bool(provider and provider.is_available())
     except Exception:
-        pass
-
-    return False
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -1228,17 +1192,6 @@ IMAGE_GENERATE_SCHEMA = {
                 "description": "The aspect ratio of the generated image. 'landscape' is 16:9 wide, 'portrait' is 16:9 tall, 'square' is 1:1.",
                 "default": DEFAULT_ASPECT_RATIO,
             },
-            "quality": {
-                "type": "string",
-                "enum": list(IMAGE_QUALITY_SCHEMA_VALUES),
-                "description": (
-                    "Generation quality for GPT image backends. Use 'auto' "
-                    "to keep the user's configured default, 'low' for drafts, "
-                    "'medium' for balanced output, and 'high' for final or "
-                    "text-heavy images. Non-GPT image backends ignore it."
-                ),
-                "default": DEFAULT_IMAGE_QUALITY,
-            },
             "image_url": {
                 "type": "string",
                 "description": (
@@ -1283,7 +1236,7 @@ def _read_configured_image_model():
 
 
 def _read_configured_image_provider():
-    """Return the value of ``image_gen.provider`` from config.yaml, or None.
+    """Return ``image_gen.provider`` from config.yaml, or None.
 
     We only consult the plugin registry when this is explicitly set — an
     unset value keeps users on the in-tree FAL fallback even when other
@@ -1309,7 +1262,6 @@ def _read_configured_image_provider():
 def _dispatch_to_plugin_provider(
     prompt: str,
     aspect_ratio: str,
-    quality: str = DEFAULT_IMAGE_QUALITY,
     image_url: Optional[str] = None,
     reference_image_urls: Optional[list] = None,
 ):
@@ -1329,8 +1281,8 @@ def _dispatch_to_plugin_provider(
     route to its edit endpoint.
     """
     configured = _read_configured_image_provider()
-    if not configured:
-        return None
+    if not configured or configured == "fal":
+        return None  # unset/explicit FAL keeps the legacy FAL path
 
     # Also read configured model so we can pass it to the plugin
     configured_model = _read_configured_image_model()
@@ -1371,7 +1323,6 @@ def _dispatch_to_plugin_provider(
 
     kwargs: Dict[str, Any] = {"prompt": prompt, "aspect_ratio": aspect_ratio}
     try:
-        kwargs = {"prompt": prompt, "aspect_ratio": aspect_ratio, "quality": quality}
         if configured_model:
             kwargs["model"] = configured_model
         if isinstance(image_url, str) and image_url.strip():
@@ -1552,7 +1503,6 @@ def _handle_image_generate(args, **kw):
     if not prompt:
         return tool_error("prompt is required for image generation")
     aspect_ratio = args.get("aspect_ratio", DEFAULT_ASPECT_RATIO)
-    quality = args.get("quality", DEFAULT_IMAGE_QUALITY)
     image_url = args.get("image_url")
     reference_image_urls = args.get("reference_image_urls")
     task_id = kw.get("task_id")
@@ -1562,7 +1512,6 @@ def _handle_image_generate(args, **kw):
     # already reaches the Krea plugin's managed gateway path.
     dispatched = _dispatch_to_plugin_provider(
         prompt, aspect_ratio,
-        quality=quality,
         image_url=image_url,
         reference_image_urls=reference_image_urls,
     )
@@ -1585,7 +1534,6 @@ def _handle_image_generate(args, **kw):
     raw = image_generate_tool(
         prompt=prompt,
         aspect_ratio=aspect_ratio,
-        quality=quality,
         image_url=image_url,
         reference_image_urls=reference_image_urls,
     )

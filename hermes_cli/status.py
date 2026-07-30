@@ -108,33 +108,33 @@ def show_status(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│                 ⚕ Hermes Agent 状态                   │", Colors.CYAN))
+    print(color("│                 ⚕ Hermes Agent Status                  │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
 
     # =========================================================================
     # Environment
     # =========================================================================
     print()
-    print(color("◆ 运行环境", Colors.CYAN, Colors.BOLD))
-    print(f"  项目路径:     {PROJECT_ROOT}")
+    print(color("◆ Environment", Colors.CYAN, Colors.BOLD))
+    print(f"  Project:      {PROJECT_ROOT}")
     print(f"  Python:       {sys.version.split()[0]}")
 
     env_path = get_env_path()
-    print(f"  .env 文件:    {check_mark(env_path.exists())} {'存在' if env_path.exists() else '未找到'}")
+    print(f"  .env file:    {check_mark(env_path.exists())} {'exists' if env_path.exists() else 'not found'}")
 
     try:
         config = load_config()
     except Exception:
         config = {}
 
-    print(f"  模型:         {_configured_model_label(config)}")
-    print(f"  提供商:       {_effective_provider_label()}")
+    print(f"  Model:        {_configured_model_label(config)}")
+    print(f"  Provider:     {_effective_provider_label()}")
 
     # =========================================================================
     # API Keys
     # =========================================================================
     print()
-    print(color("◆ API 密钥", Colors.CYAN, Colors.BOLD))
+    print(color("◆ API Keys", Colors.CYAN, Colors.BOLD))
 
     # Values may be a single env var name (str) or a tuple of alternates (first found wins).
     keys: dict[str, str | tuple[str, ...]] = {
@@ -150,12 +150,12 @@ def show_status(args):
         "StepFun Step Plan": "STEPFUN_API_KEY",
         "MiniMax": "MINIMAX_API_KEY",
         "MiniMax-CN": "MINIMAX_CN_API_KEY",
+        "DeepInfra": "DEEPINFRA_API_KEY",
         "Firecrawl": "FIRECRAWL_API_KEY",
         "Tavily": "TAVILY_API_KEY",
         "Browser Use": "BROWSER_USE_API_KEY",  # Optional — local browser works without this
         "Browserbase": "BROWSERBASE_API_KEY",  # Optional — direct credentials only
         "FAL": "FAL_KEY",
-        "PackyAPI": "PACKYAPI_API_KEY",
         "ElevenLabs": "ELEVENLABS_API_KEY",
         "GitHub": "GITHUB_TOKEN",
     }
@@ -190,7 +190,7 @@ def show_status(args):
     # Auth Providers (OAuth)
     # =========================================================================
     print()
-    print(color("◆ 认证提供商", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Auth Providers", Colors.CYAN, Colors.BOLD))
 
     try:
         from hermes_cli.auth import (
@@ -367,7 +367,7 @@ def show_status(args):
     # API-Key Providers
     # =========================================================================
     print()
-    print(color("◆ API Key 提供商", Colors.CYAN, Colors.BOLD))
+    print(color("◆ API-Key Providers", Colors.CYAN, Colors.BOLD))
 
     apikey_providers = {
         "Z.AI / GLM":       ("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY"),
@@ -375,6 +375,7 @@ def show_status(args):
         "StepFun Step Plan": ("STEPFUN_API_KEY",),
         "MiniMax":          ("MINIMAX_API_KEY",),
         "MiniMax (China)":  ("MINIMAX_CN_API_KEY",),
+        "DeepInfra":        ("DEEPINFRA_API_KEY",),
     }
     for pname, env_vars in apikey_providers.items():
         key_val = ""
@@ -407,7 +408,7 @@ def show_status(args):
     # Terminal Configuration
     # =========================================================================
     print()
-    print(color("◆ 终端后端", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Terminal Backend", Colors.CYAN, Colors.BOLD))
 
     terminal_cfg = config.get("terminal", {}) if isinstance(config.get("terminal"), dict) else {}
     terminal_env = os.getenv("TERMINAL_ENV", "")
@@ -434,7 +435,7 @@ def show_status(args):
     # Messaging Platforms
     # =========================================================================
     print()
-    print(color("◆ 消息平台", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Messaging Platforms", Colors.CYAN, Colors.BOLD))
 
     platforms = {
         "Telegram": ("TELEGRAM_BOT_TOKEN", "TELEGRAM_HOME_CHANNEL"),
@@ -486,7 +487,7 @@ def show_status(args):
     # Gateway Status
     # =========================================================================
     print()
-    print(color("◆ 网关服务", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Gateway Service", Colors.CYAN, Colors.BOLD))
 
     try:
         from hermes_cli.gateway import get_gateway_runtime_snapshot, _format_gateway_pids
@@ -522,13 +523,15 @@ def show_status(args):
     # Cron Jobs
     # =========================================================================
     print()
-    print(color("◆ 定时任务", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Scheduled Jobs", Colors.CYAN, Colors.BOLD))
 
     jobs_file = get_hermes_home() / "cron" / "jobs.json"
     if jobs_file.exists():
         import json
         try:
-            with open(jobs_file, encoding="utf-8") as f:
+            # utf-8-sig: same dialect as cron/jobs.load_jobs — Windows editors
+            # may leave a UTF-8 BOM that plain utf-8 json.load rejects.
+            with open(jobs_file, encoding="utf-8-sig") as f:
                 data = json.load(f)
                 jobs = data.get("jobs", [])
                 enabled_jobs = [j for j in jobs if j.get("enabled", True)]
@@ -542,7 +545,7 @@ def show_status(args):
     # Sessions
     # =========================================================================
     print()
-    print(color("◆ 会话", Colors.CYAN, Colors.BOLD))
+    print(color("◆ Sessions", Colors.CYAN, Colors.BOLD))
 
     # Gateway session count: state.db is the source of truth (#9006);
     # fall back to sessions.json for pre-migration installs.
@@ -583,7 +586,7 @@ def show_status(args):
     # =========================================================================
     if deep:
         print()
-        print(color("◆ 深度检查", Colors.CYAN, Colors.BOLD))
+        print(color("◆ Deep Checks", Colors.CYAN, Colors.BOLD))
         
         # Check OpenRouter connectivity
         openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
@@ -616,6 +619,6 @@ def show_status(args):
 
     print()
     print(color("─" * 60, Colors.DIM))
-    print(color("  运行 'hermes doctor' 查看详细诊断", Colors.DIM))
-    print(color("  运行 'hermes setup' 进行配置", Colors.DIM))
+    print(color("  Run 'hermes doctor' for detailed diagnostics", Colors.DIM))
+    print(color("  Run 'hermes setup' to configure", Colors.DIM))
     print()

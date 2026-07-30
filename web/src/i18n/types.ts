@@ -116,6 +116,17 @@ export interface Translations {
     managingProfileBanner?: string;
   };
 
+  // ── Chat page ──
+  // Optional so locales without these newer Dashboard strings preserve the
+  // existing English literals in the components.
+  chat?: {
+    copyLastResponse: string;
+    copyLastResponseTitle: string;
+    model: string;
+    reconnectToolsFeed: string;
+    switchModel: string;
+  };
+
   // ── Status page ──
   status: {
     actionFailed: string;
@@ -148,12 +159,11 @@ export interface Translations {
     starting: string;
     startedInBackground: string;
     stopped: string;
-    checkUpdates: string;
-    checkingUpdates: string;
-    updateAvailable: string;
-    noUpdateAvailable: string;
-    updateCheckFailed: string;
-    localizedUpdateHint: string;
+    updateHermes: string;
+    updateHermesConfirmMessage?: string;
+    updateHermesConfirmNow?: string;
+    updateHermesConfirmTitle?: string;
+    updatingHermes: string;
     waitingForOutput: string;
   };
 
@@ -228,7 +238,76 @@ export interface Translations {
 
   // ── Models page ──
   models: {
-    page?: Record<string, string>;
+    /** Optional strings for the newer model-management UI. */
+    page?: {
+      addPreset: string;
+      addReferenceModel: string;
+      aggregator: string;
+      allAuxiliaryTasks: string;
+      analyticsHiddenAfterConfig: string;
+      analyticsHiddenBeforeConfig: string;
+      analyticsHiddenConfig: string;
+      appliesToNewSessions: string;
+      automatic: string;
+      auxiliaryTasks: string;
+      auxiliaryTasksDescription: string;
+      autoUseMainModel: string;
+      cacheRead: string;
+      cancel: string;
+      change: string;
+      configure: string;
+      configureMoaPresets: string;
+      current: string;
+      currentModel: string;
+      defaultLabel: string;
+      deletePreset: string;
+      expensiveModelWarning: string;
+      filterModels: string;
+      input: string;
+      mainModel: string;
+      mixtureOfAgents: string;
+      moaDescription: string;
+      modelCount: string;
+      modelPlaceholder: string;
+      modelSettings: string;
+      newPresetName: string;
+      noAuthenticatedProviders: string;
+      noMatches: string;
+      noModelsListed: string;
+      noModelsMatch: string;
+      notLoaded: string;
+      output: string;
+      overrides: string;
+      pickProvider: string;
+      providerDefault: string;
+      providerPlaceholder: string;
+      reasoning: string;
+      recursiveMoaError: string;
+      referenceModels: string;
+      references: string;
+      refreshModels: string;
+      remove: string;
+      resetAll: string;
+      resetAllToAuto: string;
+      resetAuxiliaryDescription: string;
+      resetAuxiliaryModels: string;
+      save: string;
+      savesGlobally: string;
+      saving: string;
+      selectMoaModel: string;
+      setAuxiliary: string;
+      setDefault: string;
+      switch: string;
+      switchAnyway: string;
+      switchModel: string;
+      tasksAllAutomatic: string;
+      tools: string;
+      unknown: string;
+      unusuallyHighPricing: string;
+      unset: string;
+      useAs: string;
+      vision: string;
+    };
     modelsUsed: string;
     estimatedCost: string;
     tokens: string;
@@ -530,9 +609,13 @@ export interface Translations {
     noProviders: string;
     login: string;
     disconnect: string;
-    disconnectConfirm: string;
+    /** Optional newer Dashboard strings; components keep English fallbacks. */
+    disconnectConfirm?: string;
+    openDocs?: string;
     managedExternally: string;
     copied: string;
+    copyCode: string;
+    copyFailed: string;
     cli: string;
     copyCliCommand: string;
     connect: string;
@@ -827,5 +910,25 @@ export interface Translations {
     workspacePathOptional: string;
     logTruncated: string;
     logAt: string;
+    // Optional keys added with the modal create-task dialog, board-settings
+    // dialog, and comment workflow hint. Non-English locales fall back to
+    // the English literal in the plugin bundle until translated, so these
+    // are optional to avoid churning every locale file.
+    newTaskTitle?: string;
+    taskTitleLabel?: string;
+    assigneeLabel?: string;
+    assigneeLabelHint?: string;
+    skillsLabel?: string;
+    skillsLabelHint?: string;
+    parentLabel?: string;
+    parentLabelHint?: string;
+    create?: string;
+    boardSettings?: string;
+    boardSettingsTitle?: string;
+    boardSettingsTitleFor?: string;
+    projectDirectoryOverrideHint?: string;
+    saving?: string;
+    commentHint?: string;
+    commentHintTitle?: string;
   };
 }

@@ -197,7 +197,7 @@
     ctx.fillStyle = "#8b95a8";
     ctx.font = "600 22px ui-monospace, 'SF Mono', Menlo, monospace";
     ctx.textBaseline = "top";
-    ctx.fillText(achievement.category || "", rx, 112);
+    ctx.fillText((achievement.category || "").toUpperCase(), rx, 112);
 
     // Achievement name — wrap to 2 lines if needed
     ctx.fillStyle = "#ffffff";
@@ -210,7 +210,7 @@
     }
 
     // Tier badge pill
-    const badgeLabel = tier + " Tier";
+    const badgeLabel = tier.toUpperCase() + " TIER";
     ctx.font = "700 22px ui-monospace, 'SF Mono', Menlo, monospace";
     const badgeWidth = ctx.measureText(badgeLabel).width + 32;
     const badgeX = rx;
@@ -257,14 +257,13 @@
     ctx.fillStyle = "#8b95a8";
     ctx.font = "600 20px ui-monospace, 'SF Mono', Menlo, monospace";
     ctx.textBaseline = "bottom";
-    const watermarkBrand = "Hermes Agent";
-    ctx.fillText(watermarkBrand + "  ·  hermes-agent.nousresearch.com", 70, H - 40);
+    ctx.fillText("HERMES AGENT  ·  hermes-agent.nousresearch.com", 70, H - 40);
 
-    // "Unlocked" stamp upper-right
+    // "UNLOCKED" stamp upper-right
     ctx.textBaseline = "top";
     ctx.fillStyle = color;
     ctx.font = "800 24px ui-monospace, 'SF Mono', Menlo, monospace";
-    const stamp = "◆ Unlocked";
+    const stamp = "◆ UNLOCKED";
     const stampW = ctx.measureText(stamp).width;
     ctx.fillText(stamp, W - 70 - stampW, 70);
 

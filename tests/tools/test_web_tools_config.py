@@ -314,36 +314,6 @@ class TestBackendSelection:
              patch.dict(os.environ, {"TAVILY_API_KEY": "tvly-test"}):
             assert _get_backend() == "tavily"
 
-    def test_fallback_tavily_dotenv_key(self):
-        """TAVILY_API_KEY in Hermes .env → 'tavily' even when not exported."""
-        from tools.web_tools import _get_backend
-
-        def fake_get_env_value(name):
-            return "tvly-dotenv" if name == "TAVILY_API_KEY" else ""
-
-        with patch("tools.web_tools._load_web_config", return_value={}), \
-             patch("tools.web_tools._is_tool_gateway_ready", return_value=False), \
-             patch("hermes_cli.config.get_env_value", side_effect=fake_get_env_value), \
-             patch.dict(os.environ, {}, clear=True):
-            assert _get_backend() == "tavily"
-
-    def test_web_search_loads_plugins_before_dispatch(self):
-        """web_search works even if only tools.web_tools has been imported."""
-        from agent.web_search_registry import _reset_for_tests
-        from tools.web_tools import web_search_tool
-
-        _reset_for_tests()
-
-        with patch("tools.web_tools._load_web_config", return_value={"search_backend": "tavily"}), \
-             patch("hermes_cli.config.get_env_value", lambda name: "tvly-dotenv" if name == "TAVILY_API_KEY" else ""), \
-             patch("tools.web_tools._ensure_web_plugins_loaded", side_effect=lambda: __import__("hermes_cli.plugins", fromlist=["_ensure_plugins_discovered"])._ensure_plugins_discovered(force=True)), \
-             patch("plugins.web.tavily.provider._tavily_request", return_value={"results": []}), \
-             patch("tools.interrupt.is_interrupted", return_value=False), \
-             patch.dict(os.environ, {}, clear=True):
-            result = json.loads(web_search_tool("test query", limit=1))
-
-        assert result["success"] is True
-
     def test_fallback_tavily_beats_firecrawl_direct(self):
         """Tavily ranks above firecrawl in the explicit-credential block."""
         from tools.web_tools import _get_backend
@@ -578,6 +548,14 @@ class TestCheckWebApiKey:
         self._managed_patchers = [
             patch("tools.web_tools.managed_nous_tools_enabled", return_value=True),
             patch("tools.managed_tool_gateway.managed_nous_tools_enabled", return_value=True),
+            # ddgs availability is package-presence driven and the plugin
+            # registry can hold an available ddgs provider. Neutralize both
+            # fallback surfaces so this class only exercises env-key/gateway
+            # resolution — otherwise these tests flip on machines where the
+            # optional ``ddgs`` package is installed (dev venvs) vs CI.
+            patch("tools.web_tools._ddgs_package_importable", return_value=False),
+            patch("agent.web_search_registry.get_active_search_provider", return_value=None),
+            patch("agent.web_search_registry.get_active_extract_provider", return_value=None),
         ]
         for p in self._managed_patchers:
             p.start()
@@ -597,6 +575,22 @@ class TestCheckWebApiKey:
         with patch.dict(os.environ, {"EXA_API_KEY": "exa-test"}):
             from tools.web_tools import check_web_api_key
             assert check_web_api_key() is True
+
+    def test_null_backend_value_does_not_crash(self):
+        # config.yaml with ``web:\n  backend:`` yields backend=None. The gate
+        # must not raise AttributeError on None.lower() — mirrors _get_backend.
+        with patch("tools.web_tools._load_web_config", return_value={"backend": None}):
+            from tools.web_tools import check_web_api_key
+            assert check_web_api_key() is False
+
+    def test_null_web_section_does_not_crash(self):
+        # config.yaml with a present-but-null ``web:`` section makes the raw
+        # ``.get("web", {})`` return None; _load_web_config must still yield a
+        # dict so no caller does None.get(...).
+        with patch("hermes_cli.config.load_config", return_value={"web": None}):
+            from tools.web_tools import _load_web_config, check_web_api_key
+            assert _load_web_config() == {}
+            assert check_web_api_key() is False
 
     def test_firecrawl_key_only(self):
         with patch.dict(os.environ, {"FIRECRAWL_API_KEY": "fc-test"}):

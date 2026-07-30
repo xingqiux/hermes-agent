@@ -40,6 +40,32 @@ from agent.image_gen_provider import (
 logger = logging.getLogger(__name__)
 
 
+class CodexImageGenerationUnsupportedError(RuntimeError):
+    """The active Codex account cannot use the hosted image tool."""
+
+
+_IMAGE_GENERATION_UNAVAILABLE_MESSAGE = (
+    "Image generation is not enabled for the current Codex account. "
+    "Switch the image provider to OpenAI API key, FAL, or xAI."
+)
+_IMAGE_GENERATION_UNSUPPORTED_ERROR = (
+    "Tool choice 'image_generation' not found in 'tools' parameter."
+)
+
+
+def _is_image_generation_unsupported_error(status_code: int, body: str) -> bool:
+    """Match only Codex's account-capability rejection for the image tool."""
+    if status_code != 400:
+        return False
+    try:
+        payload = json.loads(body)
+        error = payload.get("error") if isinstance(payload, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+    except (TypeError, ValueError):
+        message = body
+    return isinstance(message, str) and message.strip() == _IMAGE_GENERATION_UNSUPPORTED_ERROR
+
+
 # ---------------------------------------------------------------------------
 # Model catalog — mirrors the ``openai`` plugin so the picker UX is identical.
 # ---------------------------------------------------------------------------
@@ -68,7 +94,6 @@ _MODELS: Dict[str, Dict[str, Any]] = {
 }
 
 DEFAULT_MODEL = "gpt-image-2-medium"
-VALID_QUALITIES = {"low", "medium", "high"}
 
 _SIZES = {
     "landscape": "1536x1024",
@@ -139,25 +164,6 @@ def _resolve_model() -> Tuple[str, Dict[str, Any]]:
         return candidate, _MODELS[candidate]
 
     return DEFAULT_MODEL, _MODELS[DEFAULT_MODEL]
-
-
-def _normalize_quality(value: Any) -> Optional[str]:
-    """Return a concrete quality tier, or None for auto/invalid."""
-    if not isinstance(value, str):
-        return None
-    normalized = value.strip().lower()
-    if normalized in VALID_QUALITIES:
-        return normalized
-    return None
-
-
-def _resolve_model_for_quality(value: Any = None) -> Tuple[str, Dict[str, Any]]:
-    """Use an explicit per-call quality when present, else configured tier."""
-    quality = _normalize_quality(value)
-    if quality is not None:
-        tier_id = f"gpt-image-2-{quality}"
-        return tier_id, _MODELS[tier_id]
-    return _resolve_model()
 
 
 def _read_codex_access_token() -> Optional[str]:
@@ -413,7 +419,13 @@ def _collect_image_b64(
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 exc.response.read()
-                body = exc.response.text[:500]
+                full_body = exc.response.text
+                if _is_image_generation_unsupported_error(
+                    exc.response.status_code,
+                    full_body,
+                ):
+                    raise CodexImageGenerationUnsupportedError(full_body) from exc
+                body = full_body[:500]
                 raise RuntimeError(
                     f"Codex Responses API returned HTTP {exc.response.status_code}: {body}"
                 ) from exc
@@ -525,7 +537,7 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
                 aspect_ratio=aspect,
             )
 
-        tier_id, meta = _resolve_model_for_quality(kwargs.get("quality"))
+        tier_id, meta = _resolve_model()
         size = _SIZES.get(aspect, _SIZES["square"])
 
         token = _read_codex_access_token()
@@ -561,6 +573,19 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
                 size=size,
                 quality=meta["quality"],
                 input_images=input_images or None,
+            )
+        except CodexImageGenerationUnsupportedError:
+            logger.debug(
+                "Codex account does not expose image generation",
+                exc_info=True,
+            )
+            return error_response(
+                error=_IMAGE_GENERATION_UNAVAILABLE_MESSAGE,
+                error_type="capability_unsupported",
+                provider="openai-codex",
+                model=tier_id,
+                prompt=prompt,
+                aspect_ratio=aspect,
             )
         except Exception as exc:
             logger.debug("Codex image generation failed", exc_info=True)

@@ -29,7 +29,7 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 
 Run in powershell:
 ```powershell
-iex (irm https://hermes-agent.nousresearch.com/install.ps1)
+iex (irm https://hermes-agent.nousresearch.com/install.ps1) 
 ```
 
 If you want to install & run Hermes Desktop after a command-line only install, simply run
@@ -68,6 +68,7 @@ hermes model          # Choose your LLM provider and model
 hermes tools          # Configure which tools are enabled
 hermes gateway setup  # Set up messaging platforms
 hermes config set     # Set individual config values
+hermes config get     # Inspect individual config values
 hermes setup          # Or run the full setup wizard to configure everything at once
 ```
 

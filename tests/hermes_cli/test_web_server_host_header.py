@@ -138,13 +138,13 @@ class TestHostHeaderMiddleware:
         ws.app.state.bound_host = "127.0.0.1"
         monkeypatch.setattr(
             "hermes_cli.dashboard_auth.prefix.resolve_public_url",
-            lambda: "https://agent.xkqq.top",
+            lambda: "https://agent.example.com",
         )
         try:
             client = TestClient(ws.app)
             resp = client.get(
                 "/api/status",
-                headers={"Host": "agent.xkqq.top"},
+                headers={"Host": "agent.example.com"},
             )
             assert resp.status_code != 400 or (
                 "Invalid Host header" not in resp.json().get("detail", "")
@@ -247,7 +247,7 @@ class TestWebSocketHostOriginGuard:
         monkeypatch.setattr(ws, "_DASHBOARD_EMBEDDED_CHAT_ENABLED", True)
         monkeypatch.setattr(
             "hermes_cli.dashboard_auth.prefix.resolve_public_url",
-            lambda: "https://agent.xkqq.top",
+            lambda: "https://agent.example.com",
         )
 
         client = TestClient(ws.app)
@@ -255,8 +255,8 @@ class TestWebSocketHostOriginGuard:
         with client.websocket_connect(
             url,
             headers={
-                "Host": "agent.xkqq.top",
-                "Origin": "https://agent.xkqq.top",
+                "Host": "agent.example.com",
+                "Origin": "https://agent.example.com",
             },
         ):
             pass

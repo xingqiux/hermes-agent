@@ -220,7 +220,10 @@ export function OAuthProvidersCard({ onError, onSuccess }: Props) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex"
-                      title={`打开 ${p.name} 文档`}
+                      title={(t.oauth.openDocs ?? "Open {provider} docs").replace(
+                        "{provider}",
+                        p.name,
+                      )}
                     >
                       <Button ghost size="icon">
                         <ExternalLink />
@@ -278,10 +281,10 @@ export function OAuthProvidersCard({ onError, onSuccess }: Props) {
           if (disconnectTarget) void handleDisconnect(disconnectTarget);
         }}
         title={`${t.oauth.disconnect} ${disconnectTarget?.name ?? ""}?`}
-        description={t.oauth.disconnectConfirm.replace(
-          "{provider}",
-          disconnectTarget?.name ?? "this provider",
-        )}
+        description={(
+          t.oauth.disconnectConfirm ??
+          "This will remove the stored OAuth tokens for {provider}. You will need to re-authenticate to use it again."
+        ).replace("{provider}", disconnectTarget?.name ?? "this provider")}
         destructive
         confirmLabel={t.oauth.disconnect}
       />
