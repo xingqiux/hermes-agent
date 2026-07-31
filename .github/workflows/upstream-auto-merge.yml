@@ -24,6 +24,12 @@ jobs:
       GH_TOKEN: ${{ secrets.FORK_AUTOMATION_TOKEN }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Merge only after every gate passes
         shell: bash
         run: |
@@ -35,7 +41,8 @@ jobs:
           [[ -n "$pr" ]] || { echo 'No open PR for this commit'; exit 0; }
 
           data=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" \
-            --json headRefName,headRefOid,isCrossRepository,isDraft,labels,mergeable)
+            --json baseRefOid,headRefName,headRefOid,isCrossRepository,isDraft,labels,mergeable)
+          base_sha=$(jq -r '.baseRefOid' <<<"$data")
           branch=$(jq -r '.headRefName' <<<"$data")
           sha=$(jq -r '.headRefOid' <<<"$data")
           [[ "$branch" == sync/v* && "$sha" == "$HEAD_SHA" ]] || {
@@ -50,7 +57,7 @@ jobs:
             echo 'Hermes review label is missing'; exit 0;
           }
 
-          changed=$(gh pr diff "$pr" --repo "$GITHUB_REPOSITORY" --name-only)
+          changed=$(git diff --no-ext-diff --name-only "$base_sha...$sha")
           if grep -Eq '^\.github/(workflows|actions)/' <<<"$changed"; then
             jq -e '.labels | any(.name == "ci-reviewed")' <<<"$data" >/dev/null || {
               echo 'CI-sensitive changes still need ci-reviewed'; exit 0;
