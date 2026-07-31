@@ -1,0 +1,142 @@
+name: Detect upstream stable release
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-stable-sync
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    if: github.repository == 'xingqiux/hermes-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: fork-automation
+    env:
+      GH_TOKEN: ${{ secrets.FORK_AUTOMATION_TOKEN }}
+      UPSTREAM_REPO: NousResearch/hermes-agent
+    steps:
+      - name: Require automation token
+        run: test -n "$GH_TOKEN" || { echo '::error::FORK_AUTOMATION_TOKEN is not configured'; exit 1; }
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FORK_AUTOMATION_TOKEN }}
+
+      - name: Detect stable release and open sync PR
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=$(gh api "repos/${UPSTREAM_REPO}/releases/latest")
+          tag=$(jq -r '.tag_name' <<<"$release")
+          draft=$(jq -r '.draft' <<<"$release")
+          prerelease=$(jq -r '.prerelease' <<<"$release")
+          published_at=$(jq -r '.published_at' <<<"$release")
+
+          [[ "$draft" == false && "$prerelease" == false ]]
+          [[ "$tag" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+([.][0-9]+)?$ ]] || {
+            echo "::error::Unexpected stable tag: $tag"
+            exit 1
+          }
+
+          git fetch --force https://github.com/NousResearch/hermes-agent.git \
+            "refs/tags/${tag}:refs/tags/${tag}"
+          version=$(git show "${tag}:pyproject.toml" | awk -F'"' '/^version = / {print $2; exit}')
+          [[ -n "$version" ]] || { echo "::error::Cannot read version from $tag"; exit 1; }
+          if git merge-base --is-ancestor "$tag" HEAD; then
+            echo "Official stable $tag is already contained in main"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          branch="sync/${tag}"
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --head "$branch" --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "Sync PR #$existing already exists"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name xkqq-upstream-sync
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git switch -c "$branch"
+
+          status=merged
+          conflict_json='[]'
+          if ! git merge --no-ff --no-edit "$tag"; then
+            status=conflicts
+            conflict_json=$(git diff --name-only --diff-filter=U | jq -R . | jq -s .)
+            git merge --abort
+          fi
+
+          mkdir -p .xkqq
+          jq -n \
+            --arg repository "$UPSTREAM_REPO" \
+            --arg tag "$tag" \
+            --arg published_at "$published_at" \
+            --arg status "$status" \
+            --argjson conflicts "$conflict_json" \
+            '{repository:$repository, tag:$tag, published_at:$published_at,
+              merge_status:$status, conflicts:$conflicts}' \
+            > .xkqq/sync-request.json
+          jq --arg tag "$tag" --arg version "$version" \
+            '.stable_tag = $tag | .version = $version' .xkqq/upstream.json \
+            > .xkqq/upstream.json.tmp
+          mv .xkqq/upstream.json.tmp .xkqq/upstream.json
+          git add .xkqq/upstream.json .xkqq/sync-request.json
+          git commit -m "chore(upstream): prepare ${tag} review"
+          git push --set-upstream origin "$branch"
+
+          gh label create upstream-sync --repo "$GITHUB_REPOSITORY" \
+            --color 1D76DB --description 'Official stable release sync' --force
+          gh label create hermes-reviewed --repo "$GITHUB_REPOSITORY" \
+            --color 0E8A16 --description 'Fork goals reviewed by Hermes' --force
+          gh label create ci-reviewed --repo "$GITHUB_REPOSITORY" \
+            --color 0E8A16 --description 'CI-sensitive changes reviewed' --force
+          pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" --draft \
+            --base main --head "$branch" --label upstream-sync \
+            --title "chore(upstream): sync ${tag}" \
+            --body "Automated stable-release sync request for ${tag}. Review policy: .xkqq/FORK_GOALS.md. Merge status: ${status}.")
+          pr=${pr_url##*/}
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Hermes with HMAC V2
+        if: steps.sync.outputs.created == 'true'
+        env:
+          WEBHOOK_URL: ${{ secrets.HERMES_SYNC_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.HERMES_SYNC_WEBHOOK_SECRET }}
+          PR: ${{ steps.sync.outputs.pr }}
+          TAG: ${{ steps.sync.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$WEBHOOK_URL" && test -n "$WEBHOOK_SECRET" || {
+            echo '::error::Hermes webhook URL or secret is not configured'
+            exit 1
+          }
+          body=$(jq -nc \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --argjson pull_request "$PR" \
+            --arg tag "$TAG" \
+            '{repository:$repository,pull_request:$pull_request,tag:$tag,
+              goals_path:".xkqq/FORK_GOALS.md",event:"stable_release_sync"}')
+          timestamp=$(date +%s)
+          signature=$(BODY="$body" TS="$timestamp" SECRET="$WEBHOOK_SECRET" python3 -c \
+            'import hashlib,hmac,os; print(hmac.new(os.environ["SECRET"].encode(), (os.environ["TS"]+"."+os.environ["BODY"]).encode(), hashlib.sha256).hexdigest())')
+          curl --fail-with-body --retry 3 --retry-all-errors \
+            -H 'Content-Type: application/json' \
+            -H 'X-Webhook-Event: upstream_sync' \
+            -H "X-Webhook-Timestamp: $timestamp" \
+            -H "X-Webhook-Signature-V2: $signature" \
+            --data "$body" "$WEBHOOK_URL"
