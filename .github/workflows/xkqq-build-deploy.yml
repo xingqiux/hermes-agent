@@ -81,7 +81,7 @@ jobs:
     needs: [resolve, build]
     if: vars.XKQQ_PRODUCTION_ENABLED == 'true'
     runs-on: [self-hosted, linux, x64, hermes-production]
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: production
     env:
       IMAGE_REF: ghcr.io/xingqiux/hermes-agent@${{ needs.build.outputs.digest }}
