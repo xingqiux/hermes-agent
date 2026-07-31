@@ -143,6 +143,12 @@ PY
 trap - ERR
 rm -f "$DATA_DIR/.drain_request.json"
 docker image rm "$ROLLBACK_IMAGE" >/dev/null 2>&1 || true
+current_image_id=$(docker image inspect --format '{{.Id}}' "$CANDIDATE_IMAGE")
+while IFS= read -r image_id; do
+  if [[ -n "$image_id" && "$image_id" != "$current_image_id" ]]; then
+    docker image rm "$image_id" >/dev/null 2>&1 || true
+  fi
+done < <(docker image ls --no-trunc --filter "reference=${IMAGE_REF%@*}*" --format '{{.ID}}')
 docker image prune -f >/dev/null
 printf '%s\n' "$REVISION" > "$DEPLOY_DIR/current-revision"
 log "Revision $REVISION is healthy"
