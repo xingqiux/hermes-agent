@@ -98,7 +98,7 @@ jobs:
         run: docker logout ghcr.io
 
   prune-registry:
-    needs: deploy
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
