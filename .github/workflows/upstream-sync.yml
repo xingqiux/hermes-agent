@@ -130,7 +130,7 @@ jobs:
             --argjson pull_request "$PR" \
             --arg tag "$TAG" \
             '{repository:$repository,pull_request:$pull_request,tag:$tag,
-              goals_path:".xkqq/FORK_GOALS.md",event:"stable_release_sync"}')
+              goals_path:".xkqq/FORK_GOALS.md",event_type:"upstream_sync"}')
           timestamp=$(date +%s)
           signature=$(BODY="$body" TS="$timestamp" SECRET="$WEBHOOK_SECRET" python3 -c \
             'import hashlib,hmac,os; print(hmac.new(os.environ["SECRET"].encode(), (os.environ["TS"]+"."+os.environ["BODY"]).encode(), hashlib.sha256).hexdigest())')
