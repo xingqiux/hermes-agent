@@ -1,0 +1,117 @@
+name: Build and deploy xkqq image
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: xkqq-production
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/xingqiux/hermes-agent
+
+jobs:
+  resolve:
+    if: >-
+      github.repository == 'xingqiux/hermes-agent' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
+      current: ${{ steps.ref.outputs.current }}
+    steps:
+      - id: ref
+        env:
+          REQUESTED_REF: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          sha=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "$REQUESTED_REF" | awk 'NR==1 {print $1}')
+          [[ -n "$sha" ]] || sha="$REQUESTED_REF"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Cannot resolve $REQUESTED_REF"; exit 1; }
+          main=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [[ "$sha" == "$main" ]]; then echo 'current=true' >> "$GITHUB_OUTPUT"; else echo 'current=false' >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.current == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push latest only
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:latest
+          provenance: false
+          labels: |
+            org.opencontainers.image.revision=${{ needs.resolve.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          build-args: HERMES_GIT_SHA=${{ needs.resolve.outputs.sha }}
+          cache-from: type=gha,scope=xkqq-amd64
+          cache-to: type=gha,mode=max,scope=xkqq-amd64
+
+  deploy:
+    needs: [resolve, build]
+    if: vars.XKQQ_PRODUCTION_ENABLED == 'true'
+    runs-on: [self-hosted, linux, x64, hermes-production]
+    timeout-minutes: 30
+    environment: production
+    env:
+      IMAGE_REF: ghcr.io/xingqiux/hermes-agent@${{ needs.build.outputs.digest }}
+      REVISION: ${{ needs.resolve.outputs.sha }}
+    steps:
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run installed deployment controller
+        run: /home/ziyu/services/hermes-deploy/deploy.sh "$IMAGE_REF" "$REVISION"
+      - name: Remove short-lived registry login
+        if: always()
+        run: docker logout ghcr.io
+
+  prune-registry:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Delete old untagged image versions
+        run: |
+          set -euo pipefail
+          gh api --paginate \
+            "users/${GITHUB_REPOSITORY_OWNER}/packages/container/hermes-agent/versions?per_page=100" \
+            --jq '.[] | select((.metadata.container.tags | length) == 0) | .id' |
+          while read -r id; do
+            [[ -z "$id" ]] || gh api --method DELETE \
+              "users/${GITHUB_REPOSITORY_OWNER}/packages/container/hermes-agent/versions/${id}"
+          done
