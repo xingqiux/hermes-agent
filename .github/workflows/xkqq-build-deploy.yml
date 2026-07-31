@@ -78,6 +78,7 @@ jobs:
 
   deploy:
     needs: [resolve, build]
+    if: vars.XKQQ_PRODUCTION_ENABLED == 'true'
     runs-on: [self-hosted, linux, x64, hermes-production]
     timeout-minutes: 15
     environment: production

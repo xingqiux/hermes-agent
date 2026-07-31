@@ -79,3 +79,6 @@ contract, bypassing CI, changing repository settings, or pushing to `main`.
 Automation credentials live in GitHub Environments restricted to `main`, never
 in repository-wide Actions secrets. Sync PR code must not receive the fork
 automation token, webhook secret, or production access.
+
+Production deployment remains disabled unless the repository variable
+`XKQQ_PRODUCTION_ENABLED` is exactly `true`.
