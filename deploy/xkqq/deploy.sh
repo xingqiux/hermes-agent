@@ -86,7 +86,7 @@ docker rm -f "$CANARY_CONTAINER" >/dev/null
 log 'Isolated Dashboard canary passed'
 
 if [[ "$had_compose" == true ]]; then
-  docker exec hermes python -c \
+  docker exec --user hermes hermes python -c \
     'from gateway.drain_control import write_drain_request; write_drain_request(principal="xkqq-deploy", suppress_notification=True)'
 elif [[ "$had_native" == true ]]; then
   HERMES_HOME="$DATA_DIR" "$NATIVE_DIR/.venv/bin/python" -c \
