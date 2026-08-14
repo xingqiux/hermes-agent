@@ -16,7 +16,7 @@ jobs:
   detect:
     if: github.repository == 'xingqiux/hermes-agent'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 75
     environment: fork-automation
     env:
       GH_TOKEN: ${{ secrets.FORK_AUTOMATION_TOKEN }}
@@ -53,16 +53,25 @@ jobs:
           [[ -n "$version" ]] || { echo "::error::Cannot read version from $tag"; exit 1; }
           if git merge-base --is-ancestor "$tag" HEAD; then
             echo "Official stable $tag is already contained in main"
-            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "notify=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           branch="sync/${tag}"
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --label upstream-sync \
+            --json number,headRefName --jq ".[] | select(.headRefName != \"$branch\") | .number" |
+          while read -r old_pr; do
+            [[ -z "$old_pr" ]] || gh pr close "$old_pr" --repo "$GITHUB_REPOSITORY" \
+              --comment "已由最新稳定版 ${tag} 的同步任务取代。"
+          done
+
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --head "$branch" --json number --jq '.[0].number // empty')
           if [[ -n "$existing" ]]; then
             echo "Sync PR #$existing already exists"
-            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "notify=true" >> "$GITHUB_OUTPUT"
+            echo "pr=$existing" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -107,12 +116,12 @@ jobs:
             --title "chore(upstream): sync ${tag}" \
             --body "Automated stable-release sync request for ${tag}. Review policy: .xkqq/FORK_GOALS.md. Merge status: ${status}.")
           pr=${pr_url##*/}
-          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "notify=true" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Notify Hermes with HMAC V2
-        if: steps.sync.outputs.created == 'true'
+        if: steps.sync.outputs.notify == 'true'
         env:
           WEBHOOK_URL: ${{ secrets.HERMES_SYNC_WEBHOOK_URL }}
           WEBHOOK_SECRET: ${{ secrets.HERMES_SYNC_WEBHOOK_SECRET }}
@@ -140,3 +149,27 @@ jobs:
             -H "X-Webhook-Timestamp: $timestamp" \
             -H "X-Webhook-Signature-V2: $signature" \
             --data "$body" "$WEBHOOK_URL"
+
+      - name: Require completed Hermes review
+        if: steps.sync.outputs.notify == 'true'
+        env:
+          PR: ${{ steps.sync.outputs.pr }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            data=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" \
+              --json state,isDraft,labels)
+            state=$(jq -r '.state' <<<"$data")
+            if [[ "$state" == MERGED ]]; then
+              exit 0
+            fi
+            if [[ "$state" == OPEN ]] &&
+               [[ $(jq -r '.isDraft' <<<"$data") == false ]] &&
+               jq -e '.labels | any(.name == "hermes-reviewed")' <<<"$data" >/dev/null; then
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "::error::Hermes did not complete review for PR #$PR within 60 minutes"
+          exit 1
