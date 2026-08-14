@@ -1,10 +1,16 @@
-name: Report xkqq deployment to Weixin
+name: 微信通知 Hermes 部署结果
 
 on:
   workflow_run:
     workflows: [Build and deploy xkqq image]
     branches: [main]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 要补发通知的部署 Workflow Run ID
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -24,9 +30,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SYNC_WEBHOOK_URL: ${{ secrets.HERMES_SYNC_WEBHOOK_URL }}
       WEBHOOK_SECRET: ${{ secrets.HERMES_SYNC_WEBHOOK_SECRET }}
-      REVISION: ${{ github.event.workflow_run.head_sha }}
-      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-      SOURCE_RUN_URL: ${{ github.event.workflow_run.html_url }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
     steps:
       - name: Send deployment result to Weixin
         shell: bash
@@ -37,33 +41,58 @@ jobs:
             exit 1
           }
 
+          source_run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")
+          revision=$(jq -r '.head_sha' <<<"$source_run")
+          source_run_url=$(jq -r '.html_url' <<<"$source_run")
           jobs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/jobs?per_page=100")
           build_result=$(jq -r '[.jobs[] | select(.name == "build")][0].conclusion // "not_run"' <<<"$jobs")
           deploy_result=$(jq -r '[.jobs[] | select(.name == "deploy")][0].conclusion // "not_run"' <<<"$jobs")
           prune_result=$(jq -r '[.jobs[] | select(.name == "prune-registry")][0].conclusion // "not_run"' <<<"$jobs")
-          tag=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.xkqq/upstream.json?ref=${REVISION}" \
+          tag=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.xkqq/upstream.json?ref=${revision}" \
             --jq .content | base64 --decode | jq -r '.stable_tag // "unknown"')
-          short_revision=${REVISION:0:10}
+          short_revision=${revision:0:10}
 
           if [[ "$build_result" == success && "$deploy_result" == success && "$prune_result" == success ]]; then
-            message=$(printf 'Hermes 自动部署完成\n\n版本：%s\n提交：%s\nDashboard：正常\nTelegram、微信、NapCat：已连接\n旧镜像：已清理\n详情：%s' "$tag" "$short_revision" "$SOURCE_RUN_URL")
+            message=$(printf 'Hermes 自动部署完成\n\n版本：%s\n提交：%s\nDashboard：正常\n微信、NapCat：已连接\nTelegram：当前关闭\n旧镜像：已清理\n详情：%s' "$tag" "$short_revision" "$source_run_url")
           elif [[ "$deploy_result" == success ]]; then
-            message=$(printf 'Hermes 自动部署已上线，但后续清理失败\n\n版本：%s\n提交：%s\n镜像清理：%s\n详情：%s' "$tag" "$short_revision" "$prune_result" "$SOURCE_RUN_URL")
+            message=$(printf 'Hermes 自动部署已上线，但后续清理失败\n\n版本：%s\n提交：%s\n镜像清理：%s\n详情：%s' "$tag" "$short_revision" "$prune_result" "$source_run_url")
           elif [[ "$build_result" != success ]]; then
-            message=$(printf 'Hermes 自动构建失败\n\n版本：%s\n提交：%s\n生产环境未切换。\n详情：%s' "$tag" "$short_revision" "$SOURCE_RUN_URL")
+            message=$(printf 'Hermes 自动构建失败\n\n版本：%s\n提交：%s\n生产环境未切换。\n详情：%s' "$tag" "$short_revision" "$source_run_url")
           else
-            message=$(printf 'Hermes 自动部署失败\n\n版本：%s\n提交：%s\n部署脚本已尝试自动回滚，请检查 Actions。\n详情：%s' "$tag" "$short_revision" "$SOURCE_RUN_URL")
+            message=$(printf 'Hermes 自动部署失败\n\n版本：%s\n提交：%s\n部署脚本已尝试自动回滚，请检查 Actions。\n详情：%s' "$tag" "$short_revision" "$source_run_url")
           fi
 
           webhook_url="${SYNC_WEBHOOK_URL%/*}/xkqq-deploy-report"
           body=$(jq -nc --arg message "$message" \
             '{message:$message,event_type:"deployment_report"}')
-          timestamp=$(date +%s)
-          signature=$(BODY="$body" TS="$timestamp" SECRET="$WEBHOOK_SECRET" python3 -c \
-            'import hashlib,hmac,os; print(hmac.new(os.environ["SECRET"].encode(), (os.environ["TS"]+"."+os.environ["BODY"]).encode(), hashlib.sha256).hexdigest())')
-          curl --fail-with-body --retry 3 --retry-all-errors \
-            -H 'Content-Type: application/json' \
-            -H 'X-Webhook-Event: deployment_report' \
-            -H "X-Webhook-Timestamp: $timestamp" \
-            -H "X-Webhook-Signature-V2: $signature" \
-            --data "$body" "$webhook_url"
+          for attempt in 1 2 3; do
+            if (( attempt > 1 )); then
+              echo "微信发送失败，等待 35 秒后进行第 ${attempt} 次尝试"
+              sleep 35
+            fi
+
+            timestamp=$(date +%s)
+            signature=$(BODY="$body" TS="$timestamp" SECRET="$WEBHOOK_SECRET" python3 -c \
+              'import hashlib,hmac,os; print(hmac.new(os.environ["SECRET"].encode(), (os.environ["TS"]+"."+os.environ["BODY"]).encode(), hashlib.sha256).hexdigest())')
+            response_file=$(mktemp)
+            status=$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
+              -H 'Content-Type: application/json' \
+              -H 'X-Webhook-Event: deployment_report' \
+              -H "X-Webhook-Timestamp: $timestamp" \
+              -H "X-Webhook-Signature-V2: $signature" \
+              --data "$body" "$webhook_url" || true)
+
+            if [[ "$status" =~ ^2 ]]; then
+              cat "$response_file"
+              rm -f "$response_file"
+              exit 0
+            fi
+
+            echo "::warning::微信通知第 ${attempt} 次发送失败（HTTP ${status:-000}）"
+            cat "$response_file"
+            rm -f "$response_file"
+          done
+
+          echo '::error::微信通知连续 3 次发送失败，每次尝试间隔 35 秒'
+          exit 1
