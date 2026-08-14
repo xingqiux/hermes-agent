@@ -205,7 +205,7 @@ export const zhHant: Translations = {
     copyLastResponse: "複製上一則助手回覆",
     copyLastResponseTitle: "以原始 Markdown 複製上一則助手回覆",
     model: "模型",
-    reconnectToolsFeed: "重新連線工具串流",
+    reconnectEventsFeed: "重新連線事件串流",
     switchModel: "切換模型",
   },
 

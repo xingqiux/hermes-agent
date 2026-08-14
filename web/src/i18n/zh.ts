@@ -203,7 +203,7 @@ export const zh: Translations = {
     copyLastResponse: "复制上一条助手回复",
     copyLastResponseTitle: "以原始 Markdown 复制上一条助手回复",
     model: "模型",
-    reconnectToolsFeed: "重新连接工具流",
+    reconnectEventsFeed: "重新连接事件流",
     switchModel: "切换模型",
   },
 

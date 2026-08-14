@@ -124,7 +124,7 @@ export interface Translations {
     copyLastResponse: string;
     copyLastResponseTitle: string;
     model: string;
-    reconnectToolsFeed: string;
+    reconnectEventsFeed: string;
     switchModel: string;
   };
 
