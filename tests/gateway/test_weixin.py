@@ -241,6 +241,32 @@ class TestWeixinChunkDelivery:
         assert first_try["text"] == retry["text"]
         assert first_try["client_id"] == retry["client_id"]
 
+    @patch("gateway.platforms.weixin._send_message", new_callable=AsyncMock)
+    def test_stale_rate_limited_context_recovers_without_retry_budget(
+        self, send_message_mock, tmp_path
+    ):
+        adapter = self._connected_adapter()
+        adapter._send_chunk_retries = 0
+        adapter._token_store = weixin.ContextTokenStore(str(tmp_path))
+        adapter._token_store.set(adapter._account_id, "wxid_test123", "ctx-token")
+        send_message_mock.side_effect = [
+            {"ret": -2, "errmsg": "rate limited"},
+            {"ret": 0},
+        ]
+
+        result = asyncio.run(adapter.send("wxid_test123", "hello"))
+
+        assert result.success is True
+        assert [
+            call.kwargs["context_token"]
+            for call in send_message_mock.await_args_list
+        ] == ["ctx-token", None]
+        assert adapter._token_store.get(adapter._account_id, "wxid_test123") is None
+
+        restored_store = weixin.ContextTokenStore(str(tmp_path))
+        restored_store.restore(adapter._account_id)
+        assert restored_store.get(adapter._account_id, "wxid_test123") is None
+
     @patch("gateway.platforms.weixin.asyncio.sleep", new_callable=AsyncMock)
     @patch("gateway.platforms.weixin._send_message", new_callable=AsyncMock)
     def test_repeated_rate_limits_open_circuit_for_followup_sends(self, send_message_mock, sleep_mock):
@@ -504,11 +530,33 @@ class TestIsStaleSessionRet:
         # Genuine rate limit — must NOT be treated as stale session.
         assert weixin._is_stale_session_ret(-2, None, "freq limit") is False
 
+    def test_rate_limited_is_only_an_outbound_context_token_signal(self):
+        assert weixin._is_stale_session_ret(-2, None, "rate limited") is False
+        assert weixin._is_stale_context_token_ret(-2, None, "rate limited") is True
+        assert weixin._is_stale_context_token_ret(-2, None, "prepare failed") is True
+        assert weixin._is_stale_context_token_ret(-2, None, "") is True
+        assert weixin._is_stale_context_token_ret(-2, None, "freq limit") is False
+
 
     def test_errcode_minus_14_is_not_matched_here(self):
         # -14 is handled by the separate SESSION_EXPIRED_ERRCODE path; the
         # helper only disambiguates -2 from a genuine rate limit.
         assert weixin._is_stale_session_ret(-14, None, "session expired") is False
+
+
+class TestContextTokenStore:
+    def test_delete_removes_only_expected_token_and_persists(self, tmp_path):
+        store = weixin.ContextTokenStore(str(tmp_path))
+        store.set("account-a", "peer-a", "stale-token")
+        store.set("account-a", "peer-b", "fresh-token")
+
+        assert store.delete("account-a", "peer-a", "replacement-token") is False
+        assert store.delete("account-a", "peer-a", "stale-token") is True
+
+        restored_store = weixin.ContextTokenStore(str(tmp_path))
+        restored_store.restore("account-a")
+        assert restored_store.get("account-a", "peer-a") is None
+        assert restored_store.get("account-a", "peer-b") == "fresh-token"
 
 
 class TestWeixinContentDedup:
@@ -827,4 +875,3 @@ class TestWeixinVoiceGatewayHandoff:
             "VOICE event body leaked Tencent's STT text — runner would trust "
             "the wrong transcript instead of re-transcribing (#27300)."
         )
-
