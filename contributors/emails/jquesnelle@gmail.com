@@ -1,2 +1,2 @@
 jquesnelle
-# official v2026.7.30
+# v0.20.0 audit: NeMo Relay revert/reapply cycle

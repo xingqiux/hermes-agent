@@ -4,6 +4,7 @@ import { zh } from './zh'
 
 const criticalPaths = [
   'chat.copyLastResponse',
+  'chat.reconnectEventsFeed',
   'chat.switchModel',
   'models.page.auxiliaryTasks',
   'models.page.currentModel',
