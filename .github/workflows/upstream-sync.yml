@@ -106,11 +106,11 @@ jobs:
           git push --set-upstream origin "$branch"
 
           gh label create upstream-sync --repo "$GITHUB_REPOSITORY" \
-            --color 1D76DB --description 'Official stable release sync' --force
+            --color 1D76DB --description '官方稳定版同步任务' --force
           gh label create hermes-reviewed --repo "$GITHUB_REPOSITORY" \
-            --color 0E8A16 --description 'Fork goals reviewed by Hermes' --force
+            --color 0E8A16 --description 'Hermes 已完成 Fork 目标审核' --force
           gh label create ci-reviewed --repo "$GITHUB_REPOSITORY" \
-            --color 0E8A16 --description 'CI-sensitive changes reviewed' --force
+            --color 0E8A16 --description 'CI 相关修改已审核' --force
           pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" --draft \
             --base main --head "$branch" --label upstream-sync \
             --title "chore(upstream): 同步官方稳定版 ${tag}" \
