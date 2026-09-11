@@ -1,4 +1,4 @@
-name: Detect upstream stable release
+name: 检查官方稳定版
 
 on:
   schedule:
@@ -22,15 +22,15 @@ jobs:
       GH_TOKEN: ${{ secrets.FORK_AUTOMATION_TOKEN }}
       UPSTREAM_REPO: NousResearch/hermes-agent
     steps:
-      - name: Require automation token
-        run: test -n "$GH_TOKEN" || { echo '::error::FORK_AUTOMATION_TOKEN is not configured'; exit 1; }
+      - name: 检查自动化凭据
+        run: test -n "$GH_TOKEN" || { echo '::error::没有配置 Fork 自动化令牌'; exit 1; }
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ secrets.FORK_AUTOMATION_TOKEN }}
 
-      - name: Detect stable release and open sync PR
+      - name: 检查版本并创建同步 PR
         id: sync
         shell: bash
         run: |
@@ -43,16 +43,16 @@ jobs:
 
           [[ "$draft" == false && "$prerelease" == false ]]
           [[ "$tag" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+([.][0-9]+)?$ ]] || {
-            echo "::error::Unexpected stable tag: $tag"
+            echo "::error::官方稳定版标签格式异常：$tag"
             exit 1
           }
 
           git fetch --force https://github.com/NousResearch/hermes-agent.git \
             "refs/tags/${tag}:refs/tags/${tag}"
           version=$(git show "${tag}:pyproject.toml" | awk -F'"' '/^version = / {print $2; exit}')
-          [[ -n "$version" ]] || { echo "::error::Cannot read version from $tag"; exit 1; }
+          [[ -n "$version" ]] || { echo "::error::无法从 $tag 读取版本号"; exit 1; }
           if git merge-base --is-ancestor "$tag" HEAD; then
-            echo "Official stable $tag is already contained in main"
+            echo "官方稳定版 $tag 已经包含在 main 中"
             echo "notify=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -68,7 +68,7 @@ jobs:
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --head "$branch" --json number --jq '.[0].number // empty')
           if [[ -n "$existing" ]]; then
-            echo "Sync PR #$existing already exists"
+            echo "同步 PR #$existing 已经存在"
             echo "notify=true" >> "$GITHUB_OUTPUT"
             echo "pr=$existing" >> "$GITHUB_OUTPUT"
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -113,14 +113,14 @@ jobs:
             --color 0E8A16 --description 'CI-sensitive changes reviewed' --force
           pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" --draft \
             --base main --head "$branch" --label upstream-sync \
-            --title "chore(upstream): sync ${tag}" \
-            --body "Automated stable-release sync request for ${tag}. Review policy: .xkqq/FORK_GOALS.md. Merge status: ${status}.")
+            --title "chore(upstream): 同步官方稳定版 ${tag}" \
+            --body "这是官方稳定版 ${tag} 的自动同步请求。请按照 .xkqq/FORK_GOALS.md 审核。当前上游合并状态：${status}。")
           pr=${pr_url##*/}
           echo "notify=true" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Notify Hermes with HMAC V2
+      - name: 通知 Hermes 审核同步任务
         if: steps.sync.outputs.notify == 'true'
         env:
           WEBHOOK_URL: ${{ secrets.HERMES_SYNC_WEBHOOK_URL }}
@@ -131,7 +131,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$WEBHOOK_URL" && test -n "$WEBHOOK_SECRET" || {
-            echo '::error::Hermes webhook URL or secret is not configured'
+            echo '::error::没有配置 Hermes Webhook 地址或签名密钥'
             exit 1
           }
           body=$(jq -nc \
@@ -150,26 +150,21 @@ jobs:
             -H "X-Webhook-Signature-V2: $signature" \
             --data "$body" "$WEBHOOK_URL"
 
-      - name: Require completed Hermes review
+      - name: 写入中文同步结果
         if: steps.sync.outputs.notify == 'true'
         env:
           PR: ${{ steps.sync.outputs.pr }}
+          TAG: ${{ steps.sync.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          for _ in $(seq 1 60); do
-            data=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" \
-              --json state,isDraft,labels)
-            state=$(jq -r '.state' <<<"$data")
-            if [[ "$state" == MERGED ]]; then
-              exit 0
-            fi
-            if [[ "$state" == OPEN ]] &&
-               [[ $(jq -r '.isDraft' <<<"$data") == false ]] &&
-               jq -e '.labels | any(.name == "hermes-reviewed")' <<<"$data" >/dev/null; then
-              exit 0
-            fi
-            sleep 60
-          done
-          echo "::error::Hermes did not complete review for PR #$PR within 60 minutes"
-          exit 1
+          pr_url=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          {
+            echo "## 官方版本同步任务已创建"
+            echo
+            echo "- 官方版本：`$TAG`"
+            echo "- 同步 PR：[#${PR}](${pr_url})"
+            echo "- 状态：已通知 Hermes，等待审核和冲突处理"
+            echo
+            echo "审核完成后，Hermes 需要移除 Draft 并添加 `hermes-reviewed` 标签。自动合并门禁仍会检查全部 CI 和目标契约。"
+          } >> "$GITHUB_STEP_SUMMARY"
