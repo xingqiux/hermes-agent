@@ -1,4 +1,4 @@
-name: Merge reviewed upstream sync
+name: 合并已审核的官方同步
 
 on:
   workflow_run:
@@ -30,15 +30,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Merge only after every gate passes
+      - name: 通过全部门禁后合并
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$GH_TOKEN" || { echo '::error::FORK_AUTOMATION_TOKEN is not configured'; exit 1; }
+          test -n "$GH_TOKEN" || { echo '::error::没有配置 Fork 自动化令牌'; exit 1; }
 
           pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
             --jq '[.[] | select(.state == "open")][0].number // empty')
-          [[ -n "$pr" ]] || { echo 'No open PR for this commit'; exit 0; }
+          [[ -n "$pr" ]] || { echo '当前提交没有对应的开放 PR'; exit 0; }
 
           data=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" \
             --json baseRefOid,headRefName,headRefOid,isCrossRepository,isDraft,labels,mergeable)
@@ -46,21 +46,21 @@ jobs:
           branch=$(jq -r '.headRefName' <<<"$data")
           sha=$(jq -r '.headRefOid' <<<"$data")
           [[ "$branch" == sync/v* && "$sha" == "$HEAD_SHA" ]] || {
-            echo 'Not the current head of an upstream sync PR'
+            echo '这不是当前官方同步 PR 的最新提交'
             exit 0
           }
           [[ $(jq -r '.isCrossRepository' <<<"$data") == false ]]
           [[ $(jq -r '.isDraft' <<<"$data") == false ]] || {
-            echo 'PR is still draft'; exit 0;
+            echo 'PR 仍是 Draft，等待 Hermes 完成审核'; exit 0;
           }
           jq -e '.labels | any(.name == "hermes-reviewed")' <<<"$data" >/dev/null || {
-            echo 'Hermes review label is missing'; exit 0;
+            echo '缺少 hermes-reviewed 审核标签'; exit 0;
           }
 
           changed=$(git diff --no-ext-diff --name-only "$base_sha...$sha")
           if grep -Eq '^\.github/(workflows|actions)/' <<<"$changed"; then
             jq -e '.labels | any(.name == "ci-reviewed")' <<<"$data" >/dev/null || {
-              echo 'CI-sensitive changes still need ci-reviewed'; exit 0;
+              echo '修改了 CI 相关文件，还缺少 ci-reviewed 标签'; exit 0;
             }
           fi
 
@@ -68,12 +68,12 @@ jobs:
             --jq .content | base64 --decode)
           tag=$(jq -r '.tag' <<<"$request")
           [[ $(jq -r '.merge_status' <<<"$request") == merged ]] || {
-            echo 'Hermes has not completed the recorded upstream merge'; exit 0;
+            echo 'Hermes 还没有完成记录中的官方合并'; exit 0;
           }
           tag_sha=$(gh api "repos/NousResearch/hermes-agent/commits/${tag}" --jq .sha)
           relation=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${tag_sha}...${HEAD_SHA}" --jq .status)
           [[ "$relation" == ahead || "$relation" == identical ]] || {
-            echo "::error::Official tag $tag is not an ancestor of the PR head"
+            echo "::error::官方标签 $tag 不是当前 PR 的祖先提交"
             exit 1
           }
 
@@ -82,7 +82,7 @@ jobs:
             jq -e --arg name "$required" \
               'any(.check_runs[]; .name == $name and .conclusion == "success")' \
               <<<"$checks" >/dev/null || {
-                echo "$required is not successful yet"
+                echo "$required 尚未成功"
                 exit 0
               }
           done
@@ -93,7 +93,7 @@ jobs:
             sleep 10
           done
           [[ "$mergeable" == MERGEABLE ]] || {
-            echo "::error::PR is not mergeable: $mergeable"
+            echo "::error::PR 当前不可合并：$mergeable"
             exit 1
           }
           gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --merge --delete-branch \
