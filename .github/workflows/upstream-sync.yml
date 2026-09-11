@@ -162,9 +162,9 @@ jobs:
           {
             echo "## 官方版本同步任务已创建"
             echo
-            echo "- 官方版本：`$TAG`"
+            echo "- 官方版本：\`$TAG\`"
             echo "- 同步 PR：[#${PR}](${pr_url})"
             echo "- 状态：已通知 Hermes，等待审核和冲突处理"
             echo
-            echo "审核完成后，Hermes 需要移除 Draft 并添加 `hermes-reviewed` 标签。自动合并门禁仍会检查全部 CI 和目标契约。"
+            echo "审核完成后，Hermes 需要移除 Draft 并添加 \`hermes-reviewed\` 标签。自动合并门禁仍会检查全部 CI 和目标契约。"
           } >> "$GITHUB_STEP_SUMMARY"
